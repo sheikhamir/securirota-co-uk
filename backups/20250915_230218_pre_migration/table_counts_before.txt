@@ -1,0 +1,7 @@
+table_name	row_count
+users	46
+officers	41
+clients	6
+sites	25
+shifts	481
+documents	0

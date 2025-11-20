@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color Input Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background: #f0f0f0;
+        }
+
+        .test-container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .color-test {
+            margin: 20px 0;
+            padding: 20px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+        }
+
+        input[type="color"] {
+            width: 80px !important;
+            height: 50px !important;
+            border: 3px solid #000 !important;
+            border-radius: 8px !important;
+            cursor: pointer !important;
+            margin: 10px !important;
+            -webkit-appearance: none !important;
+            -moz-appearance: none !important;
+            appearance: none !important;
+        }
+
+        input[type="color"]::-webkit-color-swatch-wrapper {
+            padding: 0 !important;
+            border: none !important;
+        }
+
+        input[type="color"]::-webkit-color-swatch {
+            border: none !important;
+            border-radius: 5px !important;
+        }
+
+        input[type="color"]::-moz-color-swatch {
+            border: none !important;
+            border-radius: 5px !important;
+        }
+
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="test-container">
+        <h1>Color Input Test Page</h1>
+        <p>This page tests if color input elements work on your browser/server.</p>
+
+        <div class="color-test">
+            <h3>Test 1: Basic Color Input</h3>
+            <label>Choose a color:</label><br>
+            <input type="color" id="test1" value="#ff0000">
+            <div class="result" id="result1">Current value: #ff0000</div>
+        </div>
+
+        <div class="color-test">
+            <h3>Test 2: Another Color Input</h3>
+            <label>Choose another color:</label><br>
+            <input type="color" id="test2" value="#00ff00">
+            <div class="result" id="result2">Current value: #00ff00</div>
+        </div>
+
+        <div class="color-test">
+            <h3>Test 3: Color Input with Bootstrap Classes</h3>
+            <label>Bootstrap styled color input:</label><br>
+            <input type="color" id="test3" value="#0066cc" class="form-control form-control-color">
+            <div class="result" id="result3">Current value: #0066cc</div>
+        </div>
+    </div>
+
+    <script>
+        console.log('Color input test page loaded');
+
+        // Test 1
+        document.getElementById('test1').addEventListener('input', function () {
+            document.getElementById('result1').textContent = 'Current value: ' + this.value;
+            console.log('Test 1 color changed to:', this.value);
+        });
+
+        // Test 2
+        document.getElementById('test2').addEventListener('input', function () {
+            document.getElementById('result2').textContent = 'Current value: ' + this.value;
+            console.log('Test 2 color changed to:', this.value);
+        });
+
+        // Test 3
+        document.getElementById('test3').addEventListener('input', function () {
+            document.getElementById('result3').textContent = 'Current value: ' + this.value;
+            console.log('Test 3 color changed to:', this.value);
+        });
+
+        // Force styles on load
+        setTimeout(function () {
+            const colorInputs = document.querySelectorAll('input[type="color"]');
+            colorInputs.forEach((input, index) => {
+                console.log(`Color input ${index + 1}:`, input);
+                console.log(`Value: ${input.value}`);
+                console.log(`Computed styles:`, window.getComputedStyle(input));
+
+                // Force visibility
+                input.style.display = 'block';
+                input.style.visibility = 'visible';
+                input.style.opacity = '1';
+            });
+        }, 100);
+    </script>
+</body>
+
+</html>

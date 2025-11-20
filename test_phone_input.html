@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phone Input Test</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/phone-input.css">
+</head>
+
+<body>
+    <div class="container mt-5">
+        <h1>Phone Input with Country Code Test</h1>
+        <p class="text-muted">Testing smart country selector: shows only country code when closed, full names when
+            opened</p>
+
+        <div class="alert alert-info">
+            <strong>How it works:</strong>
+            <ul class="mb-0">
+                <li>When the dropdown is <strong>closed</strong>: Shows only the country code (e.g., "+44")</li>
+                <li>When you <strong>click to open</strong>: Shows full country names (e.g., "+44 United Kingdom")</li>
+                <li>After selection: Returns to showing just the country code</li>
+            </ul>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <h3>Method 1: Auto-Enhanced Existing Input</h3>
+                <div class="mb-3">
+                    <label class="form-label">Phone Number (Auto-Enhanced)</label>
+                    <input type="tel" class="form-control enhance-phone" name="phone1" placeholder="Enter phone number">
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <h3>Method 2: Programmatically Created</h3>
+                <div class="mb-3">
+                    <label class="form-label">Phone Number (Created)</label>
+                    <div id="phone-container"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-12">
+                <h3>Method 3: With Hidden Fields</h3>
+                <div class="mb-3">
+                    <label class="form-label">Company Phone</label>
+                    <div class="phone-input-container" id="company-phone-container"></div>
+                    <input type="hidden" name="company_phone_country" id="company_phone_country">
+                    <input type="hidden" name="company_phone" id="company_phone_formatted">
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <h3>Test Results</h3>
+                <div id="test-results" class="alert alert-info"></div>
+                <button type="button" class="btn btn-primary" onclick="testValues()">Test Current Values</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="assets/js/phone-country.js"></script>
+    <script>
+        async function initTest() {
+            console.log('Initializing phone inputs...');
+
+            // Wait for phone manager to be ready
+            await window.phoneCountryManager.init();
+
+            console.log('Detected country:', window.phoneCountryManager.getDetectedCountry());
+
+            // Create programmatic phone input
+            const phoneInput = window.phoneCountryManager.createPhoneInput({
+                phoneInputId: 'phone_input',
+                countrySelectId: 'country_select',
+                phoneInputName: 'phone2',
+                countrySelectName: 'country2',
+                placeholder: 'Enter phone number',
+                required: false
+            });
+            document.getElementById('phone-container').appendChild(phoneInput);
+
+            // Create company phone input with sync
+            const companyPhoneInput = window.phoneCountryManager.createPhoneInput({
+                phoneInputId: 'company_phone_input',
+                countrySelectId: 'company_phone_country_select',
+                phoneInputName: 'company_phone_display',
+                countrySelectName: 'company_phone_country_display',
+                placeholder: '20 1234 5678',
+                required: false
+            });
+            document.getElementById('company-phone-container').appendChild(companyPhoneInput);
+
+            // Setup sync handlers
+            setupPhoneSyncHandlers();
+
+            console.log('Phone inputs initialized successfully');
+        }
+
+        function setupPhoneSyncHandlers() {
+            const phoneInput = document.getElementById('company_phone_input');
+            const countrySelect = document.getElementById('company_phone_country_select');
+            const hiddenPhoneField = document.getElementById('company_phone_formatted');
+            const hiddenCountryField = document.getElementById('company_phone_country');
+
+            function syncValues() {
+                if (phoneInput && countrySelect && hiddenPhoneField && hiddenCountryField) {
+                    const formatted = window.phoneCountryManager.formatPhoneNumber(phoneInput.value, countrySelect.value);
+                    hiddenPhoneField.value = formatted;
+                    hiddenCountryField.value = countrySelect.value;
+                }
+            }
+
+            if (phoneInput && countrySelect) {
+                phoneInput.addEventListener('input', syncValues);
+                countrySelect.addEventListener('change', syncValues);
+            }
+        }
+
+        function testValues() {
+            const results = [];
+
+            // Test auto-enhanced input
+            const phone1 = document.querySelector('input[name="phone1"]');
+            if (phone1) {
+                results.push(`Auto-Enhanced Phone: ${phone1.value}`);
+            }
+
+            // Test programmatic input
+            const phone2 = document.querySelector('input[name="phone2"]');
+            const country2 = document.querySelector('select[name="country2"]');
+            if (phone2 && country2) {
+                results.push(`Programmatic Phone: ${phone2.value} (Country: ${country2.value})`);
+            }
+
+            // Test hidden fields
+            const hiddenPhone = document.getElementById('company_phone_formatted');
+            const hiddenCountry = document.getElementById('company_phone_country');
+            if (hiddenPhone && hiddenCountry) {
+                results.push(`Hidden Fields - Phone: ${hiddenPhone.value}, Country: ${hiddenCountry.value}`);
+            }
+
+            // Test validation
+            if (phone1 && phone1.value) {
+                const isValid = window.phoneCountryManager.validatePhoneNumber(phone1.value);
+                results.push(`Phone 1 Validation: ${isValid ? 'Valid' : 'Invalid'}`);
+            }
+
+            document.getElementById('test-results').innerHTML = results.join('<br>');
+        }
+
+        // Initialize when DOM is ready
+        document.addEventListener('DOMContentLoaded', initTest);
+    </script>
+</body>
+
+</html>

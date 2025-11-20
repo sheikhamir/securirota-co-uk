@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Country Selector Test</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/phone-input.css">
+</head>
+
+<body>
+    <div class="container mt-5">
+        <h1>Smart Country Selector Demo</h1>
+        <div class="alert alert-info">
+            <strong>Try this:</strong> Click on the country selector to see it expand and show full country names, then
+            select a country to see it return to showing just the code.
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <h3>Smart Phone Input</h3>
+                <div class="mb-3">
+                    <label class="form-label">Phone Number</label>
+                    <div id="demo-phone-container"></div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <h3>Auto-Enhanced Input</h3>
+                <div class="mb-3">
+                    <label class="form-label">Mobile Number</label>
+                    <input type="tel" class="form-control enhance-phone" name="mobile"
+                        placeholder="Enter mobile number">
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-4">
+            <h4>Current Status:</h4>
+            <div id="status" class="alert alert-secondary">
+                Initializing...
+            </div>
+        </div>
+    </div>
+
+    <script src="assets/js/phone-country.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async function () {
+            const statusDiv = document.getElementById('status');
+
+            try {
+                statusDiv.innerHTML = 'Loading phone country manager...';
+                await window.phoneCountryManager.init();
+
+                statusDiv.innerHTML = 'Creating smart phone input...';
+                const phoneInput = window.phoneCountryManager.createPhoneInput({
+                    phoneInputId: 'demo_phone',
+                    countrySelectId: 'demo_country',
+                    phoneInputName: 'demo_phone',
+                    countrySelectName: 'demo_country',
+                    placeholder: 'Enter phone number'
+                });
+
+                document.getElementById('demo-phone-container').appendChild(phoneInput);
+
+                const detectedCountry = window.phoneCountryManager.getDetectedCountry();
+                statusDiv.innerHTML = `
+                    <strong>Ready!</strong><br>
+                    Detected country: ${detectedCountry.country_name} (${detectedCountry.phone_code})<br>
+                    <small>The country selector shows only the code when closed, full names when opened.</small>
+                `;
+
+                // Add status updates for demo
+                const countrySelect = document.getElementById('demo_country');
+                if (countrySelect) {
+                    countrySelect.addEventListener('focus', () => {
+                        statusDiv.innerHTML += '<br><span class="text-primary">→ Dropdown opened: Showing full country names</span>';
+                    });
+
+                    countrySelect.addEventListener('blur', () => {
+                        statusDiv.innerHTML = statusDiv.innerHTML.replace(/<br><span class="text-primary">.*?<\/span>/, '');
+                        statusDiv.innerHTML += '<br><span class="text-success">→ Dropdown closed: Showing country code only</span>';
+
+                        setTimeout(() => {
+                            statusDiv.innerHTML = statusDiv.innerHTML.replace(/<br><span class="text-success">.*?<\/span>/, '');
+                        }, 2000);
+                    });
+
+                    countrySelect.addEventListener('change', () => {
+                        const selectedOption = countrySelect.options[countrySelect.selectedIndex];
+                        const phoneCode = selectedOption.dataset.phoneCode;
+                        const countryName = selectedOption.dataset.countryName;
+                        statusDiv.innerHTML = statusDiv.innerHTML.replace(/Detected country:.*?<br>/,
+                            `Selected country: ${countryName} (${phoneCode})<br>`);
+                    });
+                }
+
+            } catch (error) {
+                statusDiv.innerHTML = `<span class="text-danger">Error: ${error.message}</span>`;
+                console.error('Phone input initialization failed:', error);
+            }
+        });
+    </script>
+</body>
+
+</html>

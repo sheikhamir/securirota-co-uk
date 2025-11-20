@@ -1,0 +1,42 @@
+-- Create officers table
+-- Depends on: users, subcontractors
+
+CREATE TABLE IF NOT EXISTS officers (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT,
+    first_name VARCHAR(50) NOT NULL,
+    last_name VARCHAR(50) NOT NULL,
+    email VARCHAR(100),
+    phone VARCHAR(20),
+    address TEXT,
+    sia_badge_number VARCHAR(50),
+    sia_expiry_date DATE,
+    visa_status ENUM('Student Visa','Dependent Visa','Work Visa','British','EU','Visa','Other') DEFAULT 'British',
+    visa_expiry_date DATE,
+    employment_status ENUM('Full-time','Part-time','Casual','Inactive') DEFAULT 'Part-time',
+    hourly_rate DECIMAL(8,2) DEFAULT 0.00,
+    bank_account VARCHAR(20),
+    sort_code VARCHAR(10),
+    emergency_contact_name VARCHAR(100),
+    emergency_contact_phone VARCHAR(20),
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    staff_id VARCHAR(10) UNIQUE,
+    date_of_birth DATE,
+    national_insurance VARCHAR(15),
+    photo VARCHAR(255),
+    nationality VARCHAR(50),
+    suspend BOOLEAN DEFAULT FALSE,
+    right_to_work_reference VARCHAR(100),
+    date_started DATE,
+    date_left DATE,
+    subcontractor_id INT,
+    address_city VARCHAR(50),
+    address_postal_code VARCHAR(15),
+    bank_account_name VARCHAR(100),
+    bank_roll_number VARCHAR(30),
+    
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_suspend (suspend)
+);
