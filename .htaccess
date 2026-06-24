@@ -22,18 +22,6 @@ RewriteRule ^$ login.php [L]
     Deny from all
 </FilesMatch>
 
-# Security: Protect config directory
-<Directory "config">
-    Order allow,deny
-    Deny from all
-</Directory>
-
-# Security: Protect includes directory from direct access
-<Directory "includes">
-    Order allow,deny
-    Deny from all
-</Directory>
-
 # Performance: Enable compression
 <IfModule mod_deflate.c>
     AddOutputFilterByType DEFLATE text/plain
