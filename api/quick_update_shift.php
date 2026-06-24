@@ -14,6 +14,7 @@ header('Content-Type: application/json');
 require_once dirname(__DIR__) . '/config/config.php';
 require_once dirname(__DIR__) . '/config/database.php';
 require_once dirname(__DIR__) . '/includes/ActivityLogger.php';
+require_once dirname(__DIR__) . '/includes/email_helper.php';
 
 // Check for AJAX requests - don't redirect, return JSON error
 if (!isset($_SESSION['user_id'])) {
@@ -105,6 +106,16 @@ try {
             
             $log_action = ($action === 'confirm') ? 'confirm' : 'update';
             $logger->logShiftAction($_SESSION['user_id'], $log_action, $shift_id, $description, $metadata);
+            
+            if ($shift['officer_id'] && $new_status === 'allocated') {
+                try {
+                    $recipient = getShiftEmailRecipient($conn, $shift_id);
+                    $email_sent = sendShiftAssignmentEmail($conn, $shift_id);
+                    logShiftEmailAttempt($logger, $_SESSION['user_id'], $shift_id, 'assignment', $recipient, $email_sent, ['action' => $action]);
+                } catch (Exception $email_error) {
+                    error_log("Quick shift update email notification failed for shift {$shift_id}: " . $email_error->getMessage());
+                }
+            }
             
             // Log the update
             error_log("Shift {$shift_id} status updated to {$new_status} by user {$_SESSION['user_id']}");

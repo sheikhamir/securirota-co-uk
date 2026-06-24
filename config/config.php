@@ -1,36 +1,38 @@
 <?php
 // Session configuration - don't auto-start, let individual pages handle it
 
+require_once __DIR__ . '/env.php';
+
 // Database configuration
-define('DB_HOST', 'db5018877643.hosting-data.io');
-define('DB_NAME', 'dbs14895565');
-define('DB_USER', 'dbu4421330');
-define('DB_PASS', '-MtMr]i!hs?5Y1A*');
+defineFromEnv('DB_HOST', 'DB_HOST', 'localhost');
+defineFromEnv('DB_NAME', 'DB_NAME', '');
+defineFromEnv('DB_USER', 'DB_USER', '');
+defineFromEnv('DB_PASS', 'DB_PASS', '');
 
 // Application configuration
-define('BASE_URL', 'http://securirota.co.uk/');
-define('UPLOAD_PATH', 'uploads/');
-define('MAX_FILE_SIZE', 5 * 1024 * 1024); // 5MB
-define('ENVIRONMENT', 'production'); // or 'development' for debugging
+defineFromEnv('BASE_URL', 'BASE_URL', 'https://rohab.ae/rota/');
+defineFromEnv('UPLOAD_PATH', 'UPLOAD_PATH', 'uploads/');
+defineFromEnv('MAX_FILE_SIZE', 'MAX_FILE_SIZE', 5 * 1024 * 1024, 'bytes');
+defineFromEnv('ENVIRONMENT', 'APP_ENV', 'production');
 
 // Security
-define('ENCRYPTION_KEY', 'FTih2Ej66OUxzZKkN9EVtoTJI4RO94dm');
+defineFromEnv('ENCRYPTION_KEY', 'ENCRYPTION_KEY', '');
 
 // Email configuration (for notifications)
-define('SMTP_HOST', 'smtp.ionos.co.uk');
-define('SMTP_PORT', 587);
-define('SMTP_USER', 'info@securirota.co.uk');
-define('SMTP_PASS', '(S3cur!R0t@123!)');
+defineFromEnv('SMTP_HOST', 'SMTP_HOST', '');
+defineFromEnv('SMTP_PORT', 'SMTP_PORT', 465, 'int');
+defineFromEnv('SMTP_USER', 'SMTP_USER', '');
+defineFromEnv('SMTP_PASS', 'SMTP_PASS', '');
 
 // Timezone
-date_default_timezone_set('Europe/London');
+date_default_timezone_set(envValue('APP_TIMEZONE', 'Europe/London'));
 
 // Error reporting
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+ini_set('display_errors', envValue('DISPLAY_ERRORS', true) ? 1 : 0);
 
 // Include database connection
-require_once 'database.php';
+require_once __DIR__ . '/database.php';
 
 // Include helper functions
 require_once __DIR__ . '/../includes/helpers.php';

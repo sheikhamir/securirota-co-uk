@@ -1,10 +1,24 @@
 <?php
+require_once __DIR__ . '/env.php';
+
+defineFromEnv('DB_HOST', 'DB_HOST', 'localhost');
+defineFromEnv('DB_NAME', 'DB_NAME', '');
+defineFromEnv('DB_USER', 'DB_USER', '');
+defineFromEnv('DB_PASS', 'DB_PASS', '');
+
 class Database {
-    private $host = 'db5018877643.hosting-data.io';
-    private $db_name = 'dbs14895565';
-    private $username = 'dbu4421330';
-    private $password = '-MtMr]i!hs?5Y1A*';
+    private $host;
+    private $db_name;
+    private $username;
+    private $password;
     public $conn;
+
+    public function __construct() {
+        $this->host = defined('DB_HOST') ? DB_HOST : envValue('DB_HOST', 'localhost');
+        $this->db_name = defined('DB_NAME') ? DB_NAME : envValue('DB_NAME', '');
+        $this->username = defined('DB_USER') ? DB_USER : envValue('DB_USER', '');
+        $this->password = defined('DB_PASS') ? DB_PASS : envValue('DB_PASS', '');
+    }
 
     public function getConnection() {
         $this->conn = null;

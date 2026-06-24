@@ -14,6 +14,7 @@ header('Content-Type: application/json');
 require_once dirname(__DIR__) . '/config/config.php';
 require_once dirname(__DIR__) . '/config/database.php';
 require_once dirname(__DIR__) . '/includes/ActivityLogger.php';
+require_once dirname(__DIR__) . '/includes/email_helper.php';
 
 // Check for AJAX requests - don't redirect, return JSON error
 if (!isset($_SESSION['user_id'])) {
@@ -213,6 +214,31 @@ try {
             }
             
             $logger->logShiftAction($_SESSION['user_id'], 'reschedule', $shift_id, $description, $metadata);
+            
+            try {
+                $old_officer_id = $old_shift_data['officer_id'] ?? null;
+                $officer_changed = (string)($old_officer_id ?? '') !== (string)($officer_id ?? '');
+                $details_changed = !empty($metadata['changes']);
+                
+                if ($old_officer_id && $officer_changed) {
+                    $recipient = getOfficerEmailRecipient($conn, $old_officer_id);
+                    $email_sent = sendShiftRemovedEmail($conn, $shift_id, $old_officer_id, 'This shift has been removed from your schedule due to a reschedule.');
+                    logShiftEmailAttempt($logger, $_SESSION['user_id'], $shift_id, 'removal', $recipient, $email_sent, ['reason' => $_POST['reschedule_reason']]);
+                }
+                
+                if ($officer_id && $status === 'allocated' && ($officer_changed || $details_changed)) {
+                    $recipient = getShiftEmailRecipient($conn, $shift_id);
+                    if ($officer_changed) {
+                        $email_sent = sendShiftAssignmentEmail($conn, $shift_id);
+                        logShiftEmailAttempt($logger, $_SESSION['user_id'], $shift_id, 'assignment', $recipient, $email_sent, ['reason' => $_POST['reschedule_reason']]);
+                    } else {
+                        $email_sent = sendShiftChangedEmail($conn, $shift_id, $old_shift_data, $_POST['reschedule_reason']);
+                        logShiftEmailAttempt($logger, $_SESSION['user_id'], $shift_id, 'change', $recipient, $email_sent, ['reason' => $_POST['reschedule_reason']]);
+                    }
+                }
+            } catch (Exception $email_error) {
+                error_log("Shift reschedule email notification failed for shift {$shift_id}: " . $email_error->getMessage());
+            }
             
             error_log("Shift {$shift_id} rescheduled successfully by user {$_SESSION['user_id']}");
             

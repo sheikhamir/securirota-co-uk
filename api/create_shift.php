@@ -15,6 +15,7 @@ require_once dirname(__DIR__) . '/config/config.php';
 require_once dirname(__DIR__) . '/config/database.php';
 require_once dirname(__DIR__) . '/includes/ActivityLogger.php';
 require_once dirname(__DIR__) . '/includes/helpers.php';
+require_once dirname(__DIR__) . '/includes/email_helper.php';
 
 // Check for AJAX requests - don't redirect, return JSON error
 if (!isset($_SESSION['user_id'])) {
@@ -205,6 +206,16 @@ try {
             $logger->logShiftAction($_SESSION['user_id'], 'create', $shift_id, $description, $metadata);
         } catch (Exception $log_error) {
             error_log("Activity logging failed for shift creation: " . $log_error->getMessage());
+        }
+        
+        if ($officer_id) {
+            try {
+                $recipient = getShiftEmailRecipient($conn, $shift_id);
+                $email_sent = sendShiftAssignmentEmail($conn, $shift_id);
+                logShiftEmailAttempt($logger, $_SESSION['user_id'], $shift_id, 'assignment', $recipient, $email_sent);
+            } catch (Exception $email_error) {
+                error_log("Shift assignment email failed for shift {$shift_id}: " . $email_error->getMessage());
+            }
         }
         
         echo json_encode(['success' => true, 'message' => 'Shift created successfully', 'shift_id' => $shift_id]);

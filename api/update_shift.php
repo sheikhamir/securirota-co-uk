@@ -15,6 +15,7 @@ require_once dirname(__DIR__) . '/config/config.php';
 require_once dirname(__DIR__) . '/config/database.php';
 require_once dirname(__DIR__) . '/includes/ActivityLogger.php';
 require_once dirname(__DIR__) . '/includes/helpers.php';
+require_once dirname(__DIR__) . '/includes/email_helper.php';
 
 // Check for AJAX requests - don't redirect, return JSON error
 if (!isset($_SESSION['user_id'])) {
@@ -98,6 +99,14 @@ try {
         }
         
         $status = $_POST['status'] ?? ($officer_id ? 'allocated' : 'unallocated');
+        
+        $old_shift_stmt = $conn->prepare("SELECT * FROM shifts WHERE id = ?");
+        $old_shift_stmt->execute([$_POST['id']]);
+        $old_shift_data = $old_shift_stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($old_shift_data && $officer_id && (string)($old_shift_data['officer_id'] ?? '') !== (string)$officer_id) {
+            $status = 'allocated';
+        }
         
         // Handle role field (can be either 'role' or 'role_id')
         $role_input = $_POST['role_id'] ?? $_POST['role'] ?? null;
@@ -264,6 +273,7 @@ try {
         $description = "Updated shift at {$site_name} on {$_POST['shift_date']} ({$_POST['start_time']}-{$_POST['end_time']}) for {$officer_name}" . ($officer_id ? $rate_description : "");
         
         $metadata = [
+            'old_data' => $old_shift_data,
             'updated_data' => [
                 'site_id' => $_POST['site_id'],
                 'site_name' => $site_name,
@@ -280,6 +290,37 @@ try {
         ];
         
         $activityResult = $logger->logShiftAction($_SESSION['user_id'], 'update', $shift_id, $description, $metadata);
+        
+        try {
+            $old_officer_id = $old_shift_data['officer_id'] ?? null;
+            $officer_changed = (string)($old_officer_id ?? '') !== (string)($officer_id ?? '');
+            $shift_details_changed = !$old_shift_data ||
+                (string)$old_shift_data['site_id'] !== (string)$_POST['site_id'] ||
+                (string)$old_shift_data['shift_date'] !== (string)$_POST['shift_date'] ||
+                (string)$old_shift_data['start_time'] !== (string)$_POST['start_time'] ||
+                (string)$old_shift_data['end_time'] !== (string)$_POST['end_time'] ||
+                (string)$old_shift_data['role_id'] !== (string)$role_id ||
+                (string)$old_shift_data['status'] !== (string)$status;
+            
+            if ($old_officer_id && $officer_changed) {
+                $recipient = getOfficerEmailRecipient($conn, $old_officer_id);
+                $email_sent = sendShiftRemovedEmail($conn, $shift_id, $old_officer_id, 'This shift has been removed from your schedule.');
+                logShiftEmailAttempt($logger, $_SESSION['user_id'], $shift_id, 'removal', $recipient, $email_sent);
+            }
+            
+            if ($officer_id && ($officer_changed || $shift_details_changed)) {
+                $recipient = getShiftEmailRecipient($conn, $shift_id);
+                if ($officer_changed) {
+                    $email_sent = sendShiftAssignmentEmail($conn, $shift_id);
+                    logShiftEmailAttempt($logger, $_SESSION['user_id'], $shift_id, 'assignment', $recipient, $email_sent);
+                } else {
+                    $email_sent = sendShiftChangedEmail($conn, $shift_id, $old_shift_data);
+                    logShiftEmailAttempt($logger, $_SESSION['user_id'], $shift_id, 'change', $recipient, $email_sent);
+                }
+            }
+        } catch (Exception $email_error) {
+            error_log("Shift update email notification failed for shift {$shift_id}: " . $email_error->getMessage());
+        }
         
         echo json_encode(['success' => true, 'message' => 'Shift updated successfully', 'rows_affected' => $rowCount]);
     } else {

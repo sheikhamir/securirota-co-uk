@@ -1,0 +1,6 @@
+.env
+.env.*
+!.env.example
+
+error_log
+*/error_log

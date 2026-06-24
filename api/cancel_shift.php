@@ -14,6 +14,7 @@ header('Content-Type: application/json');
 require_once dirname(__DIR__) . '/config/config.php';
 require_once dirname(__DIR__) . '/config/database.php';
 require_once dirname(__DIR__) . '/includes/ActivityLogger.php';
+require_once dirname(__DIR__) . '/includes/email_helper.php';
 
 // Check for AJAX requests - don't redirect, return JSON error
 if (!isset($_SESSION['user_id'])) {
@@ -155,6 +156,16 @@ try {
             ];
             
             $logger->logShiftAction($_SESSION['user_id'], 'cancel', $shift_id, $description, $metadata);
+            
+            if ($old_shift_data['officer_id']) {
+                try {
+                    $recipient = getOfficerEmailRecipient($conn, $old_shift_data['officer_id']);
+                    $email_sent = sendShiftCancelledEmail($conn, $shift_id, $old_shift_data['officer_id'], $_POST['cancellation_reason']);
+                    logShiftEmailAttempt($logger, $_SESSION['user_id'], $shift_id, 'cancellation', $recipient, $email_sent, ['reason' => $_POST['cancellation_reason']]);
+                } catch (Exception $email_error) {
+                    error_log("Shift cancellation email failed for shift {$shift_id}: " . $email_error->getMessage());
+                }
+            }
             
             error_log("Shift {$shift_id} cancelled successfully by user {$_SESSION['user_id']}");
             
