@@ -18,6 +18,8 @@ if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
 
 function configureMailerSmtp($mail) {
     $mail->isSMTP();
+    $mail->CharSet = 'UTF-8';
+    $mail->Encoding = 'base64';
     $mail->Host = SMTP_HOST;
     $mail->SMTPAuth = true;
     $mail->Username = SMTP_USER;
@@ -201,7 +203,7 @@ function generateBrandedEmailTemplate($title, $content, $template_type = 'genera
 <body>
     <div class="email-container">
         <div class="header">
-            <h1><span class="shield-icon">🛡️</span> SecuriRota System</h1>
+            <h1><span class="shield-icon">SR</span> SecuriRota System</h1>
             <div class="subtitle">' . htmlspecialchars($title) . '</div>
         </div>
         <div class="content">
@@ -240,7 +242,7 @@ function generatePINEmailContent($name, $mobile, $pin) {
         </div>
         
         <div class="instructions">
-            <h4>📱 How to Login:</h4>
+            <h4>How to Login:</h4>
             <ol>
                 <li>Go to <a href="http://securirota.co.uk/login.php" class="login-link">SecuriRota Login Page</a></li>
                 <li>Enter your mobile number: <strong>' . htmlspecialchars($mobile) . '</strong></li>
@@ -250,7 +252,7 @@ function generatePINEmailContent($name, $mobile, $pin) {
         </div>
         
         <div class="security-notice">
-            <strong>🔒 Security Notice:</strong><br>
+            <strong>Security Notice:</strong><br>
             Keep your PIN secure and do not share it with anyone. If you suspect your PIN has been compromised, please contact your supervisor immediately.
         </div>';
     
@@ -266,7 +268,7 @@ function generateShiftAssignmentEmailContent($name, $site_name, $shift_date, $sh
         <div class="message">You have been assigned to a new shift. Please review the details below and confirm your availability.</div>
         
         <div class="info-box">
-            <h3>📅 Shift Assignment Details</h3>
+            <h3>Shift Assignment Details</h3>
             <div class="info-item">
                 <span class="info-label">Site:</span>
                 <span class="info-value">' . htmlspecialchars($site_name) . '</span>
@@ -286,7 +288,7 @@ function generateShiftAssignmentEmailContent($name, $site_name, $shift_date, $sh
         </div>
         
         <div class="instructions">
-            <h4>📋 Next Steps:</h4>
+            <h4>Next Steps:</h4>
             <ol>
                 <li>Review the shift details carefully</li>
                 <li>Confirm your availability as soon as possible</li>
@@ -309,7 +311,7 @@ function generateShiftReminderEmailContent($name, $site_name, $shift_date, $shif
         <div class="message">This is a friendly reminder about your upcoming shift.</div>
         
         <div class="info-box">
-            <h3>⏰ Shift Reminder</h3>
+            <h3>Shift Reminder</h3>
             <div class="info-item">
                 <span class="info-label">Site:</span>
                 <span class="info-value">' . htmlspecialchars($site_name) . '</span>
@@ -325,7 +327,7 @@ function generateShiftReminderEmailContent($name, $site_name, $shift_date, $shif
         </div>
         
         <div class="instructions">
-            <h4>📝 Preparation Checklist:</h4>
+            <h4>Preparation Checklist:</h4>
             <ol>
                 <li>Ensure you have your uniform and ID ready</li>
                 <li>Check the weather and dress appropriately</li>
@@ -335,7 +337,7 @@ function generateShiftReminderEmailContent($name, $site_name, $shift_date, $shif
         </div>
         
         <div class="security-notice">
-            <strong>⚠️ Important:</strong><br>
+            <strong>Important:</strong><br>
             If you cannot make this shift, please contact us immediately. No-shows may result in disciplinary action.
         </div>';
     
@@ -351,7 +353,7 @@ function generateWelcomeOfficerEmailContent($name, $password) {
         <div class="message">We\'re excited to have you join the SecuriRota security team. Your officer account has been created successfully.</div>
         
         <div class="info-box">
-            <h3>🔐 Your Account Details</h3>
+            <h3>Your Account Details</h3>
             <div class="info-item">
                 <span class="info-label">Username:</span>
                 <span class="info-value">' . htmlspecialchars($name) . '</span>
@@ -363,7 +365,7 @@ function generateWelcomeOfficerEmailContent($name, $password) {
         </div>
         
         <div class="instructions">
-            <h4>🚀 Getting Started:</h4>
+            <h4>Getting Started:</h4>
             <ol>
                 <li>Go to <a href="http://securirota.co.uk/login.php" class="login-link">SecuriRota Portal</a></li>
                 <li>Log in with your credentials</li>
@@ -374,7 +376,7 @@ function generateWelcomeOfficerEmailContent($name, $password) {
         </div>
         
         <div class="security-notice">
-            <strong>🔒 Security First:</strong><br>
+            <strong>Security First:</strong><br>
             Please change your temporary password on first login. Keep your login credentials secure and never share them with anyone.
         </div>';
     
@@ -456,19 +458,19 @@ function formatAdminContentForBrandedEmail($body, $template_type, $variables) {
             // Add appropriate icon based on template type
             switch($template_type) {
                 case 'pin_generation':
-                    $infoBoxContent .= '🔐 Your Login Details';
+                    $infoBoxContent .= 'Your Login Details';
                     break;
                 case 'shift_assigned':
-                    $infoBoxContent .= '📅 Shift Assignment Details';
+                    $infoBoxContent .= 'Shift Assignment Details';
                     break;
                 case 'shift_reminder':
-                    $infoBoxContent .= '⏰ Shift Reminder';
+                    $infoBoxContent .= 'Shift Reminder';
                     break;
                 case 'welcome_officer':
-                    $infoBoxContent .= '👋 Account Information';
+                    $infoBoxContent .= 'Account Information';
                     break;
                 default:
-                    $infoBoxContent .= '📋 Details';
+                    $infoBoxContent .= 'Details';
             }
             $infoBoxContent .= '</h3>';
             
@@ -487,7 +489,7 @@ function formatAdminContentForBrandedEmail($body, $template_type, $variables) {
             
         } elseif (preg_match('/^\d+\.\s+/', $paragraph) || strpos($paragraph, "\n1.") !== false || strpos($paragraph, "\n-") !== false) {
             // This looks like instructions - put in instructions box
-            $instructionsContent .= '<div class="instructions"><h4>📋 Instructions:</h4>';
+            $instructionsContent .= '<div class="instructions"><h4>Instructions:</h4>';
             
             // Convert to HTML list
             $lines = explode("\n", $paragraph);
@@ -616,7 +618,7 @@ function getPINEmailHTML($name, $mobile, $pin) {
     <body>
         <div class='container'>
             <div class='header'>
-                <h1>🛡️ SecuriRota System</h1>
+                <h1>SecuriRota System</h1>
                 <p>Your Login PIN has been generated</p>
             </div>
             
@@ -641,7 +643,7 @@ function getPINEmailHTML($name, $mobile, $pin) {
                 </ol>
                 
                 <div class='warning'>
-                    <strong>⚠️ Security Notice:</strong>
+                    <strong>Security Notice:</strong>
                     <ul>
                         <li>Keep your PIN confidential</li>
                         <li>Do not share it with anyone</li>
@@ -782,7 +784,7 @@ function getWelcomeEmailHTML($name, $mobile, $pin) {
     <body>
         <div class='container'>
             <div class='header'>
-                <h1>🎉 Welcome to SecuriRota!</h1>
+                <h1>Welcome to SecuriRota!</h1>
                 <p>Your account has been created successfully</p>
             </div>
             
@@ -801,12 +803,12 @@ function getWelcomeEmailHTML($name, $mobile, $pin) {
                 <div class='features'>
                     <h3>What you can do in SecuriRota:</h3>
                     <ul>
-                        <li>✅ View your upcoming shifts and assignments</li>
-                        <li>✅ Accept or decline shift invitations</li>
-                        <li>✅ Check in/out of your shifts</li>
-                        <li>✅ Track your earnings and payments</li>
-                        <li>✅ Update your profile and documents</li>
-                        <li>✅ View site instructions and requirements</li>
+                        <li>View your upcoming shifts and assignments</li>
+                        <li>Accept or decline shift invitations</li>
+                        <li>Check in/out of your shifts</li>
+                        <li>Track your earnings and payments</li>
+                        <li>Update your profile and documents</li>
+                        <li>View site instructions and requirements</li>
                     </ul>
                 </div>
                 
@@ -1220,7 +1222,7 @@ function buildShiftAssignmentEmailContent($shift, $accept_url, $decline_url) {
             <div class="info-item"><span class="info-label">Date:</span><span class="info-value">' . htmlspecialchars(formatShiftDateForEmail($shift['shift_date'] ?? '')) . '</span></div>
             <div class="info-item"><span class="info-label">Time:</span><span class="info-value">' . htmlspecialchars(formatShiftTimeForEmail($shift['start_time'] ?? '') . ' - ' . formatShiftTimeForEmail($shift['end_time'] ?? '')) . '</span></div>
             <div class="info-item"><span class="info-label">Role:</span><span class="info-value">' . htmlspecialchars($role) . '</span></div>
-            <div class="info-item"><span class="info-label">Rate:</span><span class="info-value">£' . htmlspecialchars($rate) . '/hour</span></div>
+            <div class="info-item"><span class="info-label">Rate:</span><span class="info-value">&pound;' . htmlspecialchars($rate) . '/hour</span></div>
         </div>
         
         <div style="text-align: center; margin: 30px 0;">
@@ -1243,7 +1245,7 @@ function buildShiftAssignmentTextContent($shift, $accept_url, $decline_url) {
         "Date: " . formatShiftDateForEmail($shift['shift_date'] ?? '') . "\n" .
         "Time: " . formatShiftTimeForEmail($shift['start_time'] ?? '') . " - " . formatShiftTimeForEmail($shift['end_time'] ?? '') . "\n" .
         "Role: {$role}\n" .
-        "Rate: £{$rate}/hour\n\n" .
+        "Rate: GBP {$rate}/hour\n\n" .
         "Confirm shift: {$accept_url}\n" .
         "Decline shift: {$decline_url}\n\n" .
         "You can also respond from the officer portal.";
@@ -1388,8 +1390,8 @@ function buildShiftChangeList($conn, $old_shift, $new_shift) {
     if ((string)($old_shift['officer_rate'] ?? '') !== (string)($new_shift['officer_rate'] ?? '')) {
         $changes[] = [
             'label' => 'Rate',
-            'from' => isset($old_shift['officer_rate']) ? '£' . number_format((float)$old_shift['officer_rate'], 2) . '/hour' : 'Not set',
-            'to' => isset($new_shift['officer_rate']) ? '£' . number_format((float)$new_shift['officer_rate'], 2) . '/hour' : 'Not set'
+            'from' => isset($old_shift['officer_rate']) ? 'GBP ' . number_format((float)$old_shift['officer_rate'], 2) . '/hour' : 'Not set',
+            'to' => isset($new_shift['officer_rate']) ? 'GBP ' . number_format((float)$new_shift['officer_rate'], 2) . '/hour' : 'Not set'
         ];
     }
     
