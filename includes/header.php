@@ -152,6 +152,12 @@ $navigation_menu = [
         'icon' => 'fas fa-users',
         'roles' => ['admin', 'manager']
     ],
+    'subcontractors' => [
+        'title' => 'Subcontractors',
+        'url' => 'pages/subcontractors.php',
+        'icon' => 'fas fa-building-user',
+        'roles' => ['admin', 'manager']
+    ],
     'sites' => [
         'title' => 'Site Records',
         'url' => 'pages/sites.php',

@@ -15,6 +15,7 @@ require_once '../includes/email_helper.php';
 require_once '../includes/country_helper.php';
 require_once '../includes/document_uploader.php';
 require_once '../includes/staff_id_helper.php';
+require_once '../includes/subcontractor_helper.php';
 
 $officer_id = $_GET['id'] ?? null;
 $is_edit = !empty($officer_id);
@@ -69,7 +70,7 @@ try {
                     $_POST['right_to_work_reference'],
                     $_POST['date_started'] ?: null,
                     $_POST['date_left'] ?: null,
-                    $_POST['subcontractor_id'] ?: null,
+                    resolveOfficerSubcontractorId($conn, $_POST),
                     isset($_POST['suspend']) ? 1 : 0,
                     $_POST['share_code'] ?: null,
                     $officer_id
@@ -222,7 +223,7 @@ try {
                         $_POST['share_code'] ?: null,
                         $_POST['date_started'] ?: null,
                         $_POST['date_left'] ?: null,
-                        $_POST['subcontractor_id'] ?: null
+                        resolveOfficerSubcontractorId($conn, $_POST)
                     ]);
                     
                     $conn->commit();
@@ -307,8 +308,11 @@ try {
     }
     
     // Get subcontractors for dropdown
-    $stmt = $conn->prepare("SELECT id, name FROM subcontractors ORDER BY name");
-    $stmt->execute();
+    $subcontractors_sql = "SELECT id, name FROM subcontractors WHERE 1=1";
+    [$company_clause, $company_params] = buildSubcontractorCompanyClause($conn);
+    $subcontractors_sql .= $company_clause . " ORDER BY name";
+    $stmt = $conn->prepare($subcontractors_sql);
+    $stmt->execute($company_params);
     $subcontractors = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
 } catch (Exception $e) {
@@ -1232,6 +1236,35 @@ try {
                                         </select>
                                         <label for="subcontractor"><i class="fas fa-building me-2 text-info"></i>Subcontractor</label>
                                     </div>
+                                    <button type="button" class="btn btn-sm btn-outline-primary mt-2" id="toggleNewSubcontractor">
+                                        <i class="fas fa-plus me-1"></i>Add subcontractor
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="row g-3 mt-2" id="newSubcontractorFields" style="display: none;">
+                                <div class="col-md-3">
+                                    <div class="form-floating">
+                                        <input type="text" class="form-control" name="new_subcontractor_name" id="newSubcontractorName" placeholder="Subcontractor name">
+                                        <label for="newSubcontractorName"><i class="fas fa-building me-2 text-info"></i>Name</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-floating">
+                                        <input type="email" class="form-control" name="new_subcontractor_email" id="newSubcontractorEmail" placeholder="Email">
+                                        <label for="newSubcontractorEmail"><i class="fas fa-envelope me-2 text-info"></i>Email</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-floating">
+                                        <input type="tel" class="form-control" name="new_subcontractor_phone" id="newSubcontractorPhone" placeholder="Phone">
+                                        <label for="newSubcontractorPhone"><i class="fas fa-phone me-2 text-info"></i>Phone</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-floating">
+                                        <input type="text" class="form-control" name="new_subcontractor_address" id="newSubcontractorAddress" placeholder="Address">
+                                        <label for="newSubcontractorAddress"><i class="fas fa-map-marker-alt me-2 text-info"></i>Address</label>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -2076,6 +2109,31 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Add input formatting
     formatInputs();
+
+    const toggleSubcontractorBtn = document.getElementById('toggleNewSubcontractor');
+    const newSubcontractorFields = document.getElementById('newSubcontractorFields');
+    const subcontractorSelect = document.getElementById('subcontractor');
+    const newSubcontractorName = document.getElementById('newSubcontractorName');
+
+    if (toggleSubcontractorBtn && newSubcontractorFields) {
+        toggleSubcontractorBtn.addEventListener('click', function() {
+            const isHidden = newSubcontractorFields.style.display === 'none';
+            newSubcontractorFields.style.display = isHidden ? 'flex' : 'none';
+            toggleSubcontractorBtn.innerHTML = isHidden
+                ? '<i class="fas fa-times me-1"></i>Cancel new subcontractor'
+                : '<i class="fas fa-plus me-1"></i>Add subcontractor';
+
+            if (isHidden) {
+                subcontractorSelect.value = '';
+                newSubcontractorName.focus();
+            } else {
+                newSubcontractorFields.querySelectorAll('input').forEach(input => {
+                    input.value = '';
+                    input.classList.remove('is-valid', 'is-invalid');
+                });
+            }
+        });
+    }
     
     // Enhanced form validation with better UX
     form.addEventListener('submit', function(event) {
