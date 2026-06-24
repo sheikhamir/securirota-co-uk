@@ -23,6 +23,7 @@ defineFromEnv('SMTP_HOST', 'SMTP_HOST', '');
 defineFromEnv('SMTP_PORT', 'SMTP_PORT', 465, 'int');
 defineFromEnv('SMTP_USER', 'SMTP_USER', '');
 defineFromEnv('SMTP_PASS', 'SMTP_PASS', '');
+defineFromEnv('SMTP_SECURE', 'SMTP_SECURE', '');
 
 // Timezone
 date_default_timezone_set(envValue('APP_TIMEZONE', 'Europe/London'));

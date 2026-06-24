@@ -16,6 +16,31 @@ if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
     // In production, you should use PHPMailer or similar
 }
 
+function configureMailerSmtp($mail) {
+    $mail->isSMTP();
+    $mail->Host = SMTP_HOST;
+    $mail->SMTPAuth = true;
+    $mail->Username = SMTP_USER;
+    $mail->Password = SMTP_PASS;
+    $mail->Port = SMTP_PORT;
+
+    $smtp_secure = defined('SMTP_SECURE') ? SMTP_SECURE : envValue('SMTP_SECURE', '');
+    $smtp_secure = strtolower(trim((string)$smtp_secure));
+
+    if ($smtp_secure === '') {
+        $smtp_secure = ((int)SMTP_PORT === 465) ? 'ssl' : (((int)SMTP_PORT === 587) ? 'tls' : '');
+    }
+
+    if ($smtp_secure === 'ssl' || $smtp_secure === 'smtps') {
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+    } elseif ($smtp_secure === 'tls' || $smtp_secure === 'starttls') {
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+    } else {
+        $mail->SMTPSecure = false;
+        $mail->SMTPAutoTLS = false;
+    }
+}
+
 /**
  * Generate branded HTML email template
  */
@@ -526,13 +551,7 @@ function sendPINEmailViaPHPMailer($email, $name, $mobile, $pin) {
     
     try {
         // Server settings
-        $mail->isSMTP();
-        $mail->Host       = SMTP_HOST;
-        $mail->SMTPAuth   = true;
-        $mail->Username   = SMTP_USER;
-        $mail->Password   = SMTP_PASS;
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port       = SMTP_PORT;
+        configureMailerSmtp($mail);
         
         // Recipients
         $mail->setFrom(SMTP_USER, 'SecuriRota System');
@@ -703,13 +722,7 @@ function sendWelcomeEmailViaPHPMailer($email, $name, $mobile, $pin) {
     $mail = new PHPMailer(true);
     
     try {
-        $mail->isSMTP();
-        $mail->Host       = SMTP_HOST;
-        $mail->SMTPAuth   = true;
-        $mail->Username   = SMTP_USER;
-        $mail->Password   = SMTP_PASS;
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port       = SMTP_PORT;
+        configureMailerSmtp($mail);
         
         $mail->setFrom(SMTP_USER, 'SecuriRota System');
         $mail->addAddress($email, $name);
@@ -915,13 +928,7 @@ function sendBrandedEmailViaPHPMailer($to_email, $to_name, $subject, $template_t
     
     try {
         // Server settings
-        $mail->isSMTP();
-        $mail->Host       = SMTP_HOST;
-        $mail->SMTPAuth   = true;
-        $mail->Username   = SMTP_USER;
-        $mail->Password   = SMTP_PASS;
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port       = SMTP_PORT;
+        configureMailerSmtp($mail);
         
         // Recipients
         $mail->setFrom(SMTP_USER, 'SecuriRota System');
@@ -1116,13 +1123,7 @@ function sendShiftEmailMessage($email, $name, $subject, $html_body, $text_body) 
     try {
         if (class_exists('PHPMailer\PHPMailer\PHPMailer')) {
             $mail = new PHPMailer(true);
-            $mail->isSMTP();
-            $mail->Host = SMTP_HOST;
-            $mail->SMTPAuth = true;
-            $mail->Username = SMTP_USER;
-            $mail->Password = SMTP_PASS;
-            $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
-            $mail->Port = SMTP_PORT;
+            configureMailerSmtp($mail);
             
             $mail->setFrom(SMTP_USER, 'SecuriRota System');
             $mail->addAddress($email, $name);
