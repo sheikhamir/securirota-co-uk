@@ -544,8 +544,8 @@ function editShift(shiftId) {
                                         <input type="text"
                                                id="edit_officer_select_search"
                                                class="form-control"
-                                               value="${escapeHtml(shift.officer_display_name || shift.officer_name || 'Unallocated')}"
-                                               placeholder="Search officer by name, staff ID, or phone"
+                                               value="${escapeHtml(shift.officer_id ? (shift.officer_display_name || shift.officer_name || '') : '')}"
+                                               placeholder="Unallocated - search to assign officer"
                                                autocomplete="off"
                                                ${activeFieldState}>
                                         <div id="edit_officer_select_results" class="officer-search-results"></div>

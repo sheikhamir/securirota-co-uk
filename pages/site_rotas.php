@@ -1559,8 +1559,8 @@ function renderSiteOfficerPicker(id) {
             <input type="text"
                    id="${id}_search"
                    class="form-control"
-                   value="Leave Unallocated"
-                   placeholder="Search officer by name, staff ID, or phone"
+                   value=""
+                   placeholder="Leave unallocated - search to assign officer"
                    autocomplete="off">
             <div id="${id}_results" class="officer-search-results"></div>
         </div>

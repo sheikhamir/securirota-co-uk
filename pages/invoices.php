@@ -268,8 +268,8 @@ try {
                         <input type="text"
                                id="invoice_officer_search"
                                class="form-control"
-                               value="<?php echo htmlspecialchars(($selected_officer_display ?? '') ?: 'All Officers'); ?>"
-                               placeholder="Search officer by name, staff ID, or phone"
+                               value="<?php echo htmlspecialchars($selected_officer_display ?? ''); ?>"
+                               placeholder="All officers - search to filter"
                                autocomplete="off">
                         <div id="invoice_officer_results" class="officer-search-results"></div>
                     </div>

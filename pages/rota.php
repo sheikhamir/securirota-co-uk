@@ -1604,6 +1604,7 @@ function getOfficerDisplayName(officer) {
 function renderOfficerSearchField(config) {
     const selectedId = config.selectedId || '';
     const selectedLabel = config.selectedLabel || '';
+    const displayValue = selectedId ? selectedLabel : '';
     const disabled = config.disabled ? 'disabled' : '';
     const placeholder = config.placeholder || 'Search officer by name, staff ID, or phone';
 
@@ -1613,11 +1614,11 @@ function renderOfficerSearchField(config) {
                    name="${config.name || 'officer_id'}"
                    id="${config.id}"
                    value="${escapeHtml(selectedId)}"
-                   data-officer-name="${escapeHtml(selectedLabel)}">
+                   data-officer-name="${escapeHtml(displayValue)}">
             <input type="text"
                    id="${config.id}_search"
                    class="form-control"
-                   value="${escapeHtml(selectedLabel)}"
+                   value="${escapeHtml(displayValue)}"
                    placeholder="${escapeHtml(placeholder)}"
                    autocomplete="off"
                    ${disabled}
@@ -1804,7 +1805,7 @@ function showCreateShiftModal() {
             </div>
             <div class="form-group" style="margin-bottom: 1rem;">
                 <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">Officer (Optional):</label>
-                ${renderOfficerSearchField({ id: 'create_officer_select', selectedLabel: 'Unallocated' })}
+                ${renderOfficerSearchField({ id: 'create_officer_select', placeholder: 'Unallocated - search to assign officer' })}
                 <div id="create_officer_link_container"></div>
             </div>
             <div class="form-group" style="margin-bottom: 1rem; display: none;" id="customRateGroup">
@@ -1895,7 +1896,7 @@ function showBulkScheduleModal() {
             </div>
             <div class="form-group" style="margin-bottom: 1rem;">
                 <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">Officer (Optional):</label>
-                ${renderOfficerSearchField({ id: 'bulk_officer_select', selectedLabel: 'Leave Unallocated' })}
+                ${renderOfficerSearchField({ id: 'bulk_officer_select', placeholder: 'Leave unallocated - search to assign officer' })}
             </div>
             <div class="form-group" style="margin-bottom: 1rem; display: none;" id="customRateGroupBulk">
                 <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">
@@ -2351,7 +2352,8 @@ function editShift(shiftId) {
                             ${renderOfficerSearchField({
                                 id: 'rota_edit_officer_select',
                                 selectedId: shift.officer_id || '',
-                                selectedLabel: shift.officer_display_name || shift.officer_name || 'Unallocated',
+                                selectedLabel: shift.officer_display_name || shift.officer_name || '',
+                                placeholder: 'Unallocated - search to assign officer',
                                 disabled: activeShift
                             })}
                             <div id="rota_edit_officer_link_container"></div>
@@ -2955,7 +2957,8 @@ function showRescheduleModal(shiftId) {
                             ${renderOfficerSearchField({
                                 id: 'reschedule_officer_select',
                                 selectedId: shift.officer_id || '',
-                                selectedLabel: shift.officer_display_name || shift.officer_name || 'Unallocated'
+                                selectedLabel: shift.officer_display_name || shift.officer_name || '',
+                                placeholder: 'Unallocated - search to assign officer'
                             })}
                             <div id="reschedule_officer_link_container"></div>
                         </div>
