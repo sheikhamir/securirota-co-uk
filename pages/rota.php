@@ -1989,6 +1989,91 @@ function createShift(event) {
     });
 }
 
+function escapeHtml(value) {
+    if (value === null || value === undefined) {
+        return '';
+    }
+
+    const div = document.createElement('div');
+    div.textContent = String(value);
+    return div.innerHTML;
+}
+
+function getStoredUploadUrl(path) {
+    if (!path) {
+        return '';
+    }
+
+    if (/^https?:\/\//i.test(path)) {
+        return path;
+    }
+
+    return BASE_URL + String(path).replace(/^\/+/, '');
+}
+
+function formatShiftTimestamp(value) {
+    if (!value) {
+        return 'Not recorded';
+    }
+
+    const date = new Date(String(value).replace(' ', 'T'));
+    if (Number.isNaN(date.getTime())) {
+        return escapeHtml(value);
+    }
+
+    return date.toLocaleString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+function renderAttendancePhotoCard(label, imagePath, timestamp) {
+    const imageUrl = getStoredUploadUrl(imagePath);
+    const safeLabel = escapeHtml(label);
+
+    if (!imageUrl) {
+        return `
+            <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 0.75rem; background: #f9fafb;">
+                <div style="font-weight: 600; color: #374151; margin-bottom: 0.35rem;">${safeLabel}</div>
+                <div style="color: #6b7280; font-size: 0.875rem;">No photo recorded</div>
+                <div style="color: #6b7280; font-size: 0.8125rem; margin-top: 0.25rem;">${formatShiftTimestamp(timestamp)}</div>
+            </div>
+        `;
+    }
+
+    return `
+        <div style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 0.75rem; background: #fff;">
+            <div style="font-weight: 600; color: #374151; margin-bottom: 0.5rem;">${safeLabel}</div>
+            <a href="${escapeHtml(imageUrl)}" target="_blank" rel="noopener" style="display: block;">
+                <img src="${escapeHtml(imageUrl)}" alt="${safeLabel}" style="width: 100%; max-height: 220px; object-fit: cover; border-radius: 6px; border: 1px solid #e5e7eb;">
+            </a>
+            <div style="color: #6b7280; font-size: 0.8125rem; margin-top: 0.5rem;">${formatShiftTimestamp(timestamp)}</div>
+            <a href="${escapeHtml(imageUrl)}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary" style="margin-top: 0.5rem;">
+                <i class="fas fa-external-link-alt"></i> Open full size
+            </a>
+        </div>
+    `;
+}
+
+function renderAttendanceVerification(shift) {
+    if (!shift.checkin_image && !shift.checkout_image && !shift.checkin_timestamp && !shift.checkout_timestamp) {
+        return '';
+    }
+
+    return `
+        <div class="form-group" style="margin-top: 1rem;">
+            <label>Attendance Verification:</label>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem;">
+                ${renderAttendancePhotoCard('Check-in Photo', shift.checkin_image, shift.checkin_timestamp)}
+                ${renderAttendancePhotoCard('Check-out Photo', shift.checkout_image, shift.checkout_timestamp)}
+            </div>
+        </div>
+    `;
+}
+
 function editShift(shiftId) {
     console.log('Editing shift:', shiftId);
     fetch(BASE_URL + 'api/get_shift.php?id=' + shiftId, {
@@ -2091,6 +2176,7 @@ function editShift(shiftId) {
                                 <option value="completed" ${shift.status == 'completed' ? 'selected' : ''}>Completed</option>
                             </select>
                         </div>
+                        ${renderAttendanceVerification(shift)}
                         <div class="form-group">
                             <label>Notes:</label>
                             <textarea name="notes" class="form-control" rows="3">${shift.notes || ''}</textarea>
