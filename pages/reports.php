@@ -147,11 +147,7 @@ try {
     $selected_officer_display = '';
     if ($officer_filter) {
         $selected_officer_sql = "
-            SELECT CONCAT(
-                first_name, ' ', last_name,
-                CASE WHEN staff_id IS NOT NULL AND staff_id != '' THEN CONCAT(' - ', staff_id) ELSE '' END,
-                CASE WHEN phone IS NOT NULL AND phone != '' THEN CONCAT(' - ', phone) ELSE '' END
-            ) as display_name
+            SELECT CONCAT(first_name, ' ', last_name) as display_name
             FROM officers
             WHERE id = ?";
         $selected_officer_params = [$officer_filter];

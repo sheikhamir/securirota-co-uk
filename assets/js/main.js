@@ -207,7 +207,7 @@ function setupOfficerInfoLink(selectElement, linkContainerId = null) {
 
 function getOfficerDisplayName(officer) {
     if (!officer) return '';
-    return `${officer.first_name || ''} ${officer.last_name || ''}${officer.staff_id ? ' - ' + officer.staff_id : ''}${officer.phone ? ' - ' + officer.phone : ''}`.trim();
+    return `${officer.first_name || ''} ${officer.last_name || ''}`.trim();
 }
 
 function initOfficerAjaxPicker(config) {
@@ -540,11 +540,11 @@ function editShift(shiftId) {
                                                name="officer_id"
                                                id="edit_officer_select"
                                                value="${escapeHtml(shift.officer_id || '')}"
-                                               data-officer-name="${escapeHtml(shift.officer_display_name || shift.officer_name || '')}">
+                                               data-officer-name="${escapeHtml(shift.officer_name || '')}">
                                         <input type="text"
                                                id="edit_officer_select_search"
                                                class="form-control"
-                                               value="${escapeHtml(shift.officer_id ? (shift.officer_display_name || shift.officer_name || '') : '')}"
+                                               value="${escapeHtml(shift.officer_id ? (shift.officer_name || '') : '')}"
                                                placeholder="Unallocated - search to assign officer"
                                                autocomplete="off"
                                                ${activeFieldState}>

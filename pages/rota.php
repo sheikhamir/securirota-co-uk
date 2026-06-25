@@ -1598,7 +1598,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function getOfficerDisplayName(officer) {
     if (!officer) return '';
-    return `${officer.first_name || ''} ${officer.last_name || ''}${officer.staff_id ? ' - ' + officer.staff_id : ''}${officer.phone ? ' - ' + officer.phone : ''}`.trim();
+    return `${officer.first_name || ''} ${officer.last_name || ''}`.trim();
 }
 
 function renderOfficerSearchField(config) {
@@ -2352,7 +2352,7 @@ function editShift(shiftId) {
                             ${renderOfficerSearchField({
                                 id: 'rota_edit_officer_select',
                                 selectedId: shift.officer_id || '',
-                                selectedLabel: shift.officer_display_name || shift.officer_name || '',
+                                selectedLabel: shift.officer_name || '',
                                 placeholder: 'Unallocated - search to assign officer',
                                 disabled: activeShift
                             })}
@@ -2957,7 +2957,7 @@ function showRescheduleModal(shiftId) {
                             ${renderOfficerSearchField({
                                 id: 'reschedule_officer_select',
                                 selectedId: shift.officer_id || '',
-                                selectedLabel: shift.officer_display_name || shift.officer_name || '',
+                                selectedLabel: shift.officer_name || '',
                                 placeholder: 'Unallocated - search to assign officer'
                             })}
                             <div id="reschedule_officer_link_container"></div>
