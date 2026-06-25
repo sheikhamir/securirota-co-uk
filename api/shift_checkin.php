@@ -114,7 +114,7 @@ try {
         // Update shift with check-in details and set status to in_progress
         $stmt = $conn->prepare("
             UPDATE shifts 
-            SET checkin_image = ?, checkin_timestamp = NOW(), actual_start_time = TIME(NOW()), 
+            SET checkin_image = ?, checkin_timestamp = NOW(),
                 status = 'in_progress',
                 notes = CONCAT(COALESCE(notes, ''), ?, 'Checked in at: ', NOW(), CHAR(10))
             WHERE id = ?
@@ -189,7 +189,7 @@ try {
         
         $stmt = $conn->prepare("
             UPDATE shifts 
-            SET checkout_image = ?, checkout_timestamp = NOW(), actual_end_time = TIME(NOW()), status = 'completed',
+            SET checkout_image = ?, checkout_timestamp = NOW(), status = 'completed',
                 notes = CONCAT(COALESCE(notes, ''), ?)
             WHERE id = ?
         ");
