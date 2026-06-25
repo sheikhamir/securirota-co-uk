@@ -2058,10 +2058,26 @@ function renderAttendancePhotoCard(label, imagePath, timestamp) {
     `;
 }
 
+function getShiftLateReason(shift) {
+    const notes = shift.notes || '';
+    const match = notes.match(/Late check-in reason:\s*([^\r\n]+)/i);
+    return match ? match[1].trim() : '';
+}
+
+function showShiftLateReason(reason) {
+    alert(reason || 'No late check-in reason recorded.');
+}
+
+function isShiftActive(shift) {
+    return shift.status === 'in_progress' || Boolean(shift.checkin_timestamp && !shift.checkout_timestamp);
+}
+
 function renderAttendanceVerification(shift) {
     if (!shift.checkin_image && !shift.checkout_image && !shift.checkin_timestamp && !shift.checkout_timestamp) {
         return '';
     }
+
+    const lateReason = getShiftLateReason(shift);
 
     return `
         <div class="form-group" style="margin-top: 1rem;">
@@ -2070,6 +2086,11 @@ function renderAttendanceVerification(shift) {
                 ${renderAttendancePhotoCard('Check-in Photo', shift.checkin_image, shift.checkin_timestamp)}
                 ${renderAttendancePhotoCard('Check-out Photo', shift.checkout_image, shift.checkout_timestamp)}
             </div>
+            ${lateReason ? `
+                <button type="button" class="btn btn-sm btn-outline-warning" style="margin-top: 0.75rem;" onclick='showShiftLateReason(${JSON.stringify(lateReason)})'>
+                    <i class="fas fa-exclamation-triangle"></i> View late check-in reason
+                </button>
+            ` : ''}
         </div>
     `;
 }
@@ -2101,10 +2122,29 @@ function editShift(shiftId) {
                 const data = JSON.parse(rawResponse);
                 if (data.success) {
                 const shift = data.shift;
+                const activeShift = isShiftActive(shift);
+                const activeFieldState = activeShift ? 'disabled' : '';
+                const activeReadonlyState = activeShift ? 'readonly' : '';
+                const activeNotice = activeShift ? `
+                    <div style="padding: 0.75rem; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px; color: #9a3412; margin-bottom: 1rem;">
+                        <i class="fas fa-lock"></i>
+                        This shift is active. Only the end time can be changed.
+                    </div>
+                ` : '';
+                const hiddenActiveFields = activeShift ? `
+                    <input type="hidden" name="officer_id" value="${shift.officer_id || ''}">
+                    <input type="hidden" name="role_id" value="${shift.role_id || ''}">
+                    <input type="hidden" name="role" value="${escapeHtml(shift.role || '')}">
+                    <input type="hidden" name="status" value="${shift.status || ''}">
+                    <input type="hidden" name="custom_officer_rate" value="${shift.custom_officer_rate || ''}">
+                ` : '';
+                const deleteButton = activeShift ? '' : `<button type="button" class="btn btn-danger" onclick="deleteShift(${shiftId})">Delete Shift</button>`;
                 const content = `
                     <form id="editShiftForm" onsubmit="updateShift(event, ${shiftId})">
                         <input type="hidden" name="site_id" value="${shift.site_id}">
                         <input type="hidden" name="shift_date" value="${shift.shift_date}">
+                        ${hiddenActiveFields}
+                        ${activeNotice}
                         <div class="form-group">
                             <label>Date:</label>
                             <input type="date" class="form-control" value="${shift.shift_date}" readonly style="background-color: #f8f9fa;">
@@ -2117,7 +2157,7 @@ function editShift(shiftId) {
                         </div>
                         <div class="form-group">
                             <label>Officer:</label>
-                            <select name="officer_id" id="rota_edit_officer_select" class="form-control" onchange="toggleCustomRateFieldEdit(this)">
+                            <select name="officer_id" id="rota_edit_officer_select" class="form-control" onchange="toggleCustomRateFieldEdit(this)" ${activeFieldState}>
                                 <option value="">Unallocated</option>
                                 ${data.officers.sort((a, b) => {
                                     return a.first_name.toLowerCase().localeCompare(b.first_name.toLowerCase());
@@ -2140,6 +2180,7 @@ function editShift(shiftId) {
                                    step="0.01" 
                                    min="0" 
                                    value="${shift.custom_officer_rate || ''}"
+                                   ${activeReadonlyState}
                                    placeholder="Leave blank to use officer's default rate">
                             <small class="form-text text-muted">
                                 Only set this if you want to pay a different rate for this specific shift
@@ -2148,7 +2189,7 @@ function editShift(shiftId) {
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                             <div class="form-group">
                                 <label>Start Time:</label>
-                                <input type="time" name="start_time" class="form-control" value="${shift.start_time}" required onchange="checkOvernightShift(this)">
+                                <input type="time" name="start_time" class="form-control" value="${shift.start_time}" required onchange="checkOvernightShift(this)" ${activeReadonlyState}>
                             </div>
                             <div class="form-group">
                                 <label>End Time:</label>
@@ -2162,16 +2203,17 @@ function editShift(shiftId) {
                         </div>
                         <div class="form-group">
                             <label>Role:</label>
-                            <select name="role_id" class="form-control" required>
+                            <select name="role_id" class="form-control" required ${activeFieldState}>
                                 ${getRoleOptions(shift.role_id)}
                             </select>
                         </div>
                         <div class="form-group">
                             <label>Status:</label>
-                            <select name="status" class="form-control" required>
+                            <select name="status" class="form-control" required ${activeFieldState}>
                                 <option value="unallocated" ${shift.status == 'unallocated' ? 'selected' : ''}>Unallocated</option>
                                 <option value="allocated" ${shift.status == 'allocated' ? 'selected' : ''}>Allocated</option>
                                 <option value="confirmed" ${shift.status == 'confirmed' ? 'selected' : ''}>Confirmed</option>
+                                <option value="in_progress" ${shift.status == 'in_progress' ? 'selected' : ''}>In Progress</option>
                                 <option value="declined" ${shift.status == 'declined' ? 'selected' : ''}>Declined</option>
                                 <option value="completed" ${shift.status == 'completed' ? 'selected' : ''}>Completed</option>
                             </select>
@@ -2179,11 +2221,11 @@ function editShift(shiftId) {
                         ${renderAttendanceVerification(shift)}
                         <div class="form-group">
                             <label>Notes:</label>
-                            <textarea name="notes" class="form-control" rows="3">${shift.notes || ''}</textarea>
+                            <textarea name="notes" class="form-control" rows="3" ${activeReadonlyState}>${shift.notes || ''}</textarea>
                         </div>
                         <div class="d-flex gap-10">
                             <button type="submit" class="btn btn-primary">Update Shift</button>
-                            <button type="button" class="btn btn-danger" onclick="deleteShift(${shiftId})">Delete Shift</button>
+                            ${deleteButton}
                         </div>
                     </form>
                 `;
@@ -2613,7 +2655,7 @@ function quickUpdateShift(shiftId, action) {
             const shiftElement = document.querySelector(`[data-shift-id="${shiftId}"]`);
             if (shiftElement) {
                 // Remove old status class and add new one
-                shiftElement.className = shiftElement.className.replace(/\b(unallocated|allocated|confirmed|declined|completed)\b/g, '');
+                shiftElement.className = shiftElement.className.replace(/\b(unallocated|allocated|confirmed|declined|in_progress|completed)\b/g, '');
                 shiftElement.classList.add(data.new_status);
                 
                 // Update action buttons based on new status

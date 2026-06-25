@@ -67,6 +67,17 @@ try {
             ]);
             exit();
         }
+
+        $is_active_shift = $shift['status'] === 'in_progress' ||
+            (!empty($shift['checkin_timestamp']) && empty($shift['checkout_timestamp']));
+
+        if ($is_active_shift) {
+            echo json_encode([
+                'success' => false,
+                'message' => 'This shift is already active. Only the end time can be changed from the edit shift form.'
+            ]);
+            exit();
+        }
         
         // Update the shift status
         $stmt = $conn->prepare("UPDATE shifts SET status = ?, updated_at = NOW() WHERE id = ?");

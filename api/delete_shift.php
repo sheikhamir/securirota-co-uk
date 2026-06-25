@@ -76,6 +76,17 @@ try {
             echo json_encode(['success' => false, 'message' => 'Shift not found']);
             exit();
         }
+
+        $is_active_shift = $shift_data['status'] === 'in_progress' ||
+            (!empty($shift_data['checkin_timestamp']) && empty($shift_data['checkout_timestamp']));
+
+        if ($is_active_shift) {
+            echo json_encode([
+                'success' => false,
+                'message' => 'This shift is already active and cannot be deleted. Only the end time can be changed.'
+            ]);
+            exit();
+        }
         
         // Delete the shift
         $stmt = $conn->prepare("DELETE FROM shifts WHERE id = ?");

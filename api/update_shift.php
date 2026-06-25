@@ -98,18 +98,68 @@ try {
             }
         }
         
-        $status = $_POST['status'] ?? ($officer_id ? 'allocated' : 'unallocated');
-        
         $old_shift_stmt = $conn->prepare("SELECT * FROM shifts WHERE id = ?");
         $old_shift_stmt->execute([$_POST['id']]);
         $old_shift_data = $old_shift_stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$old_shift_data) {
+            echo json_encode(['success' => false, 'message' => 'Shift not found']);
+            exit();
+        }
+
+        $is_active_shift = $old_shift_data['status'] === 'in_progress' ||
+            (!empty($old_shift_data['checkin_timestamp']) && empty($old_shift_data['checkout_timestamp']));
+
+        if ($is_active_shift) {
+            $locked_fields = [
+                'site_id' => 'site',
+                'officer_id' => 'officer',
+                'shift_date' => 'date',
+                'start_time' => 'start time',
+                'role_id' => 'role',
+                'notes' => 'notes',
+                'custom_officer_rate' => 'custom officer rate'
+            ];
+
+            foreach ($locked_fields as $field => $label) {
+                $old_value = $old_shift_data[$field] ?? '';
+                $new_value = $_POST[$field] ?? '';
+
+                if ($field === 'officer_id') {
+                    $new_value = $officer_id ?? '';
+                }
+
+                if ($field === 'custom_officer_rate') {
+                    $new_value = !empty($_POST['custom_officer_rate']) && $_POST['custom_officer_rate'] > 0 ? $_POST['custom_officer_rate'] : '';
+                    $old_value = !empty($old_value) ? $old_value : '';
+                }
+
+                if ((string)$old_value !== (string)$new_value) {
+                    echo json_encode([
+                        'success' => false,
+                        'message' => "This shift is already active. Only the end time can be changed."
+                    ]);
+                    exit();
+                }
+            }
+
+            if (isset($_POST['status']) && $_POST['status'] !== $old_shift_data['status']) {
+                echo json_encode([
+                    'success' => false,
+                    'message' => "This shift is already active. Only the end time can be changed."
+                ]);
+                exit();
+            }
+        }
+
+        $status = $_POST['status'] ?? ($officer_id ? 'allocated' : 'unallocated');
         
         if ($old_shift_data && $officer_id && (string)($old_shift_data['officer_id'] ?? '') !== (string)$officer_id) {
             $status = 'allocated';
         }
         
         // Handle role field (can be either 'role' or 'role_id')
-        $role_input = $_POST['role_id'] ?? $_POST['role'] ?? null;
+        $role_input = !empty($_POST['role_id']) ? $_POST['role_id'] : ($_POST['role'] ?? null);
         
         // Convert role name to ID if necessary
         if ($role_input && !is_numeric($role_input)) {
@@ -162,6 +212,21 @@ try {
         // Instead, use null for shift_id to force calculation from officer default rate
         $shift_id_for_rate = ($custom_officer_rate === null) ? null : $_POST['id'];
         $officer_rate = $officer_id ? getShiftOfficerRate($shift_id_for_rate, $officer_id, $custom_officer_rate, $conn) : 0.00;
+
+        $shift_details_changed = (string)$old_shift_data['site_id'] !== (string)$_POST['site_id'] ||
+            (string)$old_shift_data['officer_id'] !== (string)($officer_id ?? '') ||
+            (string)$old_shift_data['shift_date'] !== (string)$_POST['shift_date'] ||
+            (string)$old_shift_data['start_time'] !== (string)$_POST['start_time'] ||
+            (string)$old_shift_data['end_time'] !== (string)$_POST['end_time'] ||
+            (string)$old_shift_data['role_id'] !== (string)$role_id;
+
+        if ($old_shift_data['status'] === 'confirmed' && $shift_details_changed) {
+            $status = 'allocated';
+        }
+
+        if ($is_active_shift) {
+            $status = $old_shift_data['status'];
+        }
         
         $stmt = $conn->prepare("
             UPDATE shifts SET 
@@ -294,13 +359,8 @@ try {
         try {
             $old_officer_id = $old_shift_data['officer_id'] ?? null;
             $officer_changed = (string)($old_officer_id ?? '') !== (string)($officer_id ?? '');
-            $shift_details_changed = !$old_shift_data ||
-                (string)$old_shift_data['site_id'] !== (string)$_POST['site_id'] ||
-                (string)$old_shift_data['shift_date'] !== (string)$_POST['shift_date'] ||
-                (string)$old_shift_data['start_time'] !== (string)$_POST['start_time'] ||
-                (string)$old_shift_data['end_time'] !== (string)$_POST['end_time'] ||
-                (string)$old_shift_data['role_id'] !== (string)$role_id ||
-                (string)$old_shift_data['status'] !== (string)$status;
+            $status_changed = (string)$old_shift_data['status'] !== (string)$status;
+            $shift_details_changed = $shift_details_changed || $status_changed;
             
             if ($old_officer_id && $officer_changed) {
                 $recipient = getOfficerEmailRecipient($conn, $old_officer_id);

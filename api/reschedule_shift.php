@@ -130,6 +130,17 @@ try {
             ]);
             exit();
         }
+
+        $is_active_shift = $old_shift_data['status'] === 'in_progress' ||
+            (!empty($old_shift_data['checkin_timestamp']) && empty($old_shift_data['checkout_timestamp']));
+
+        if ($is_active_shift) {
+            echo json_encode([
+                'success' => false,
+                'message' => 'This shift is already active. Only the end time can be changed from the edit shift form.'
+            ]);
+            exit();
+        }
         
         // Prepare the update query with reschedule fields
         $sql = "UPDATE shifts SET 

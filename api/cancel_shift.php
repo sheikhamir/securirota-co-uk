@@ -95,6 +95,17 @@ try {
             ]);
             exit();
         }
+
+        $is_active_shift = $old_shift_data['status'] === 'in_progress' ||
+            (!empty($old_shift_data['checkin_timestamp']) && empty($old_shift_data['checkout_timestamp']));
+
+        if ($is_active_shift) {
+            echo json_encode([
+                'success' => false,
+                'message' => 'This shift is already active and cannot be cancelled. Only the end time can be changed.'
+            ]);
+            exit();
+        }
         
         // Check if shift can be cancelled (not already completed or cancelled)
         if (in_array($old_shift_data['status'], ['completed', 'cancelled'])) {
