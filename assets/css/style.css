@@ -1852,3 +1852,32 @@ input[type="color"] {
     margin-top: 0.25rem;
     font-style: italic;
 }
+/* Shared async officer picker */
+.officer-search-wrap {
+    position: relative;
+}
+
+.officer-search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #d1d5db;
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+    max-height: 260px;
+    overflow-y: auto;
+    z-index: 10000;
+    display: none;
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -2px rgb(0 0 0 / 0.05);
+}
+
+.officer-search-empty,
+.officer-search-loading,
+.officer-search-error {
+    padding: 10px 12px;
+    color: #6b7280;
+    font-size: 0.875rem;
+    background: white;
+}

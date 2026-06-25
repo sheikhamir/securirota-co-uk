@@ -64,9 +64,21 @@ try {
         $stmt->execute($params);
         $invoice_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        // Get officers for dropdown
-        $officers_stmt = $conn->query("SELECT id, staff_id, first_name, last_name, phone FROM officers WHERE employment_status != 'Inactive' ORDER BY first_name");
-        $entities = $officers_stmt->fetchAll(PDO::FETCH_ASSOC);
+        $selected_officer_display = '';
+        if ($entity_id) {
+            $selected_officer_stmt = $conn->prepare("
+                SELECT CONCAT(
+                    first_name, ' ', last_name,
+                    CASE WHEN staff_id IS NOT NULL AND staff_id != '' THEN CONCAT(' - ', staff_id) ELSE '' END,
+                    CASE WHEN phone IS NOT NULL AND phone != '' THEN CONCAT(' - ', phone) ELSE '' END
+                ) as display_name
+                FROM officers
+                WHERE id = ? AND employment_status != 'Inactive'
+            ");
+            $selected_officer_stmt->execute([$entity_id]);
+            $selected_officer_display = $selected_officer_stmt->fetchColumn() ?: '';
+        }
+        $entities = [];
         
     } else {
         // Client invoices
@@ -246,27 +258,31 @@ try {
             
             <div class="form-group">
                 <label><?php echo $type === 'officer' ? 'Officer:' : 'Client:'; ?></label>
-                <select name="entity_id" class="form-control">
-                    <option value="">All <?php echo $type === 'officer' ? 'Officers' : 'Clients'; ?></option>
-                    <?php foreach ($entities as $entity): ?>
-                        <option value="<?php echo $entity['id']; ?>" <?php echo $entity_id == $entity['id'] ? 'selected' : ''; ?>>
-                            <?php 
-                            if ($type === 'officer') {
-                                $displayName = $entity['first_name'] . ' ' . $entity['last_name'];
-                                if (!empty($entity['staff_id'])) {
-                                    $displayName .= ' - ' . $entity['staff_id'];
-                                }
-                                if (!empty($entity['phone'])) {
-                                    $displayName .= ' - ' . $entity['phone'];
-                                }
-                                echo htmlspecialchars($displayName);
-                            } else {
-                                echo htmlspecialchars($entity['name']);
-                            }
-                            ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
+                <?php if ($type === 'officer'): ?>
+                    <div class="officer-search-wrap">
+                        <input type="hidden"
+                               name="entity_id"
+                               id="invoice_officer_id"
+                               value="<?php echo htmlspecialchars($entity_id); ?>"
+                               data-officer-name="<?php echo htmlspecialchars($selected_officer_display ?? ''); ?>">
+                        <input type="text"
+                               id="invoice_officer_search"
+                               class="form-control"
+                               value="<?php echo htmlspecialchars(($selected_officer_display ?? '') ?: 'All Officers'); ?>"
+                               placeholder="Search officer by name, staff ID, or phone"
+                               autocomplete="off">
+                        <div id="invoice_officer_results" class="officer-search-results"></div>
+                    </div>
+                <?php else: ?>
+                    <select name="entity_id" class="form-control">
+                        <option value="">All Clients</option>
+                        <?php foreach ($entities as $entity): ?>
+                            <option value="<?php echo $entity['id']; ?>" <?php echo $entity_id == $entity['id'] ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($entity['name']); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                <?php endif; ?>
             </div>
         </div>
         
@@ -277,6 +293,18 @@ try {
         </div>
     </form>
 </div>
+
+<?php if ($type === 'officer'): ?>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    initOfficerAjaxPicker({
+        hiddenInputId: 'invoice_officer_id',
+        searchInputId: 'invoice_officer_search',
+        resultsId: 'invoice_officer_results'
+    });
+});
+</script>
+<?php endif; ?>
 
 <!-- Invoice List -->
 <?php if (empty($invoice_data)): ?>

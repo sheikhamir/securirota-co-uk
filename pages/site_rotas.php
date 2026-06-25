@@ -191,10 +191,6 @@ try {
         $client_info = $stmt->fetch(PDO::FETCH_ASSOC);
     }
     
-    // Get officers for allocation
-    $stmt = $conn->query("SELECT id, staff_id, first_name, last_name, phone FROM officers WHERE employment_status != 'Inactive' ORDER BY first_name");
-    $officers = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
     // Generate dates based on view mode
     $period_dates = [];
     if ($view_mode === 'month') {
@@ -224,7 +220,6 @@ try {
     $client_info = null;
     $shifts_by_date = [];
     $shifts_by_site = [];
-    $officers = [];
     $period_dates = [];
     $week_start = isset($week_start) ? $week_start : null;
     $week_end = isset($week_end) ? $week_end : null;
@@ -1557,24 +1552,30 @@ try {
 </div>
 
 <script>
-// Generate officers options for JavaScript
-const officersOptions = `
-    <option value="">Leave Unallocated</option>
-    <?php foreach ($officers as $officer): ?>
-        <option value="<?php echo $officer['id']; ?>">
-            <?php 
-                $displayName = $officer['first_name'] . ' ' . $officer['last_name'];
-                if (!empty($officer['staff_id'])) {
-                    $displayName .= ' - ' . $officer['staff_id'];
-                }
-                if (!empty($officer['phone'])) {
-                    $displayName .= ' - ' . $officer['phone'];
-                }
-                echo htmlspecialchars($displayName);
-            ?>
-        </option>
-    <?php endforeach; ?>
-`;
+function renderSiteOfficerPicker(id) {
+    return `
+        <div class="officer-search-wrap">
+            <input type="hidden" name="officer_id" id="${id}" value="" data-officer-name="">
+            <input type="text"
+                   id="${id}_search"
+                   class="form-control"
+                   value="Leave Unallocated"
+                   placeholder="Search officer by name, staff ID, or phone"
+                   autocomplete="off">
+            <div id="${id}_results" class="officer-search-results"></div>
+        </div>
+    `;
+}
+
+function initSiteOfficerPicker(id, linkContainerId) {
+    initOfficerAjaxPicker({
+        hiddenInputId: id,
+        searchInputId: `${id}_search`,
+        resultsId: `${id}_results`,
+        linkContainerId,
+        onChange: toggleCustomRateFieldSite
+    });
+}
 
 // Global roles variable for dynamic loading
 let ALL_ROLES = [];
@@ -2171,9 +2172,7 @@ function showCreateShiftModal(siteId) {
             </div>
             <div class="form-group mb-3">
                 <label for="officer_id" class="form-label">Officer (Optional):</label>
-                <select name="officer_id" id="site_create_officer_id" class="form-select" onchange="toggleCustomRateFieldSite(this)">
-                    ${officersOptions}
-                </select>
+                ${renderSiteOfficerPicker('site_create_officer_id')}
                 <div id="site_create_officer_link_container"></div>
             </div>
             <div class="form-group mb-3" style="display: none;" id="customRateGroupSite">
@@ -2214,10 +2213,7 @@ function showCreateShiftModal(siteId) {
     
     // Setup officer info link after modal is shown
     setTimeout(() => {
-        const officerSelect = document.getElementById('site_create_officer_id');
-        if (officerSelect) {
-            setupOfficerInfoLink(officerSelect, 'site_create_officer_link_container');
-        }
+        initSiteOfficerPicker('site_create_officer_id', 'site_create_officer_link_container');
     }, 100);
 }
 
@@ -2246,9 +2242,7 @@ function createShiftForDate(date, siteId) {
             </div>
             <div class="form-group mb-3">
                 <label for="officer_id" class="form-label">Officer (Optional):</label>
-                <select name="officer_id" id="site_date_officer_id" class="form-select" onchange="toggleCustomRateFieldSite(this)">
-                    ${officersOptions}
-                </select>
+                ${renderSiteOfficerPicker('site_date_officer_id')}
                 <div id="site_date_officer_link_container"></div>
             </div>
             <div class="form-group mb-3" style="display: none;" id="customRateGroupSite">
@@ -2289,10 +2283,7 @@ function createShiftForDate(date, siteId) {
     
     // Setup officer info link after modal is shown
     setTimeout(() => {
-        const officerSelect = document.getElementById('site_date_officer_id');
-        if (officerSelect) {
-            setupOfficerInfoLink(officerSelect, 'site_date_officer_link_container');
-        }
+        initSiteOfficerPicker('site_date_officer_id', 'site_date_officer_link_container');
     }, 100);
 }
 

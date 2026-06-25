@@ -157,9 +157,12 @@ function setupOfficerInfoLink(selectElement, linkContainerId = null) {
         const officerId = selectElement.value;
 
         if (officerId && officerId !== '' && officerId !== 'null') {
-            // Get officer name from the selected option
-            const selectedOption = selectElement.options[selectElement.selectedIndex];
-            const officerName = selectedOption.text;
+            let officerName = selectElement.dataset.officerName || '';
+            if (!officerName && selectElement.options) {
+                const selectedOption = selectElement.options[selectElement.selectedIndex];
+                officerName = selectedOption ? selectedOption.text : 'Officer';
+            }
+            officerName = officerName || 'Officer';
 
             // Construct the correct URL for officer detail page
             let officerDetailUrl;
@@ -200,6 +203,159 @@ function setupOfficerInfoLink(selectElement, linkContainerId = null) {
 
     // Initialize the link based on current selection
     updateOfficerLink();
+}
+
+function getOfficerDisplayName(officer) {
+    if (!officer) return '';
+    return `${officer.first_name || ''} ${officer.last_name || ''}${officer.staff_id ? ' - ' + officer.staff_id : ''}${officer.phone ? ' - ' + officer.phone : ''}`.trim();
+}
+
+function initOfficerAjaxPicker(config) {
+    const hiddenInput = document.getElementById(config.hiddenInputId);
+    const searchInput = document.getElementById(config.searchInputId);
+    const results = document.getElementById(config.resultsId);
+
+    if (!hiddenInput || !searchInput || !results || searchInput.disabled) return;
+
+    let searchTimer = null;
+    let requestToken = 0;
+
+    const hideResults = () => {
+        results.style.display = 'none';
+        results.innerHTML = '';
+    };
+
+    const clearSelection = () => {
+        hiddenInput.value = '';
+        hiddenInput.dataset.officerName = '';
+        hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+
+    const selectOfficer = (officer) => {
+        hiddenInput.value = officer.id;
+        hiddenInput.dataset.officerName = getOfficerDisplayName(officer);
+        searchInput.value = hiddenInput.dataset.officerName;
+        hideResults();
+        hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+
+    const highlight = (text, query) => {
+        const safeText = escapeHtml(text || '');
+        if (!query || query.length < 2) return safeText;
+        const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return safeText.replace(new RegExp(`(${escapedQuery})`, 'gi'), '<strong>$1</strong>');
+    };
+
+    const renderResults = (officers, query) => {
+        if (!officers.length) {
+            results.innerHTML = '<div class="officer-search-empty">No officers found</div>';
+            results.style.display = 'block';
+            return;
+        }
+
+        results.innerHTML = officers.map((officer, index) => `
+            <div class="search-result-item" data-index="${index}" role="button" tabindex="-1">
+                <div>${highlight(getOfficerDisplayName(officer), query)}</div>
+                <div>${officer.staff_id ? 'Staff ID: ' + highlight(officer.staff_id, query) : 'Officer'}</div>
+            </div>
+        `).join('');
+
+        results.querySelectorAll('.search-result-item').forEach((item) => {
+            item.addEventListener('mousedown', (event) => {
+                event.preventDefault();
+                selectOfficer(officers[parseInt(item.dataset.index, 10)]);
+            });
+        });
+
+        results.style.display = 'block';
+    };
+
+    const searchOfficers = (query) => {
+        const token = ++requestToken;
+        const baseUrl = typeof BASE_URL !== 'undefined' ? BASE_URL : '../';
+        results.innerHTML = '<div class="officer-search-loading"><i class="fas fa-spinner fa-spin"></i> Searching...</div>';
+        results.style.display = 'block';
+
+        fetch(baseUrl + 'api/search_officers.php?q=' + encodeURIComponent(query) + '&limit=20')
+            .then(response => response.json())
+            .then(data => {
+                if (token !== requestToken) return;
+                if (data.success) {
+                    renderResults(data.officers || [], query);
+                } else {
+                    results.innerHTML = '<div class="officer-search-error">Error loading officers</div>';
+                }
+            })
+            .catch(error => {
+                console.error('Officer search error:', error);
+                if (token === requestToken) {
+                    results.innerHTML = '<div class="officer-search-error">Error loading officers</div>';
+                }
+            });
+    };
+
+    searchInput.addEventListener('input', () => {
+        const query = searchInput.value.trim();
+        clearTimeout(searchTimer);
+
+        if (!query) {
+            clearSelection();
+            hideResults();
+            return;
+        }
+
+        if (query !== hiddenInput.dataset.officerName) {
+            clearSelection();
+        }
+
+        searchTimer = setTimeout(() => {
+            if (query.length >= 2) {
+                searchOfficers(query);
+            } else {
+                results.innerHTML = '<div class="officer-search-empty">Type at least 2 characters</div>';
+                results.style.display = 'block';
+            }
+        }, 250);
+    });
+
+    searchInput.addEventListener('blur', () => {
+        setTimeout(() => {
+            if (!hiddenInput.value && searchInput.value.trim() !== '') {
+                searchInput.value = '';
+            }
+            hideResults();
+        }, 150);
+    });
+
+    searchInput.addEventListener('keydown', (event) => {
+        const items = results.querySelectorAll('.search-result-item');
+        let selectedIndex = Array.from(items).findIndex(item => item.classList.contains('selected'));
+
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            selectedIndex = selectedIndex < items.length - 1 ? selectedIndex + 1 : 0;
+            items.forEach(item => item.classList.remove('selected'));
+            if (items[selectedIndex]) items[selectedIndex].classList.add('selected');
+        } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            selectedIndex = selectedIndex > 0 ? selectedIndex - 1 : items.length - 1;
+            items.forEach(item => item.classList.remove('selected'));
+            if (items[selectedIndex]) items[selectedIndex].classList.add('selected');
+        } else if (event.key === 'Enter' && selectedIndex >= 0 && items[selectedIndex]) {
+            event.preventDefault();
+            items[selectedIndex].dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+        } else if (event.key === 'Escape') {
+            hideResults();
+            searchInput.blur();
+        }
+    });
+
+    setupOfficerInfoLink(hiddenInput, config.linkContainerId);
+
+    if (typeof config.onChange === 'function') {
+        hiddenInput.addEventListener('change', () => config.onChange(hiddenInput));
+        config.onChange(hiddenInput);
+    }
 }
 
 // Shift management functions
@@ -379,15 +535,21 @@ function editShift(shiftId) {
                                 ${activeNotice}
                                 <div class="form-group">
                                     <label>Officer:</label>
-                                    <select name="officer_id" id="edit_officer_select" class="form-control" onchange="toggleCustomRateFieldMainEdit(this)" ${activeFieldState}>
-                                        <option value="">Select Officer</option>
-                                        ${data.officers.sort((a, b) => {
-                                            return a.first_name.toLowerCase().localeCompare(b.first_name.toLowerCase());
-                                        }).map(officer => {
-                                            const displayName = `${officer.first_name} ${officer.last_name}${officer.staff_id ? ' - ' + officer.staff_id : ''}${officer.phone ? ' - ' + officer.phone : ''}`;
-                                            return `<option value="${officer.id}" ${officer.id == shift.officer_id ? 'selected' : ''}>${displayName}</option>`;
-                                        }).join('')}
-                                    </select>
+                                    <div class="officer-search-wrap">
+                                        <input type="hidden"
+                                               name="officer_id"
+                                               id="edit_officer_select"
+                                               value="${escapeHtml(shift.officer_id || '')}"
+                                               data-officer-name="${escapeHtml(shift.officer_display_name || shift.officer_name || '')}">
+                                        <input type="text"
+                                               id="edit_officer_select_search"
+                                               class="form-control"
+                                               value="${escapeHtml(shift.officer_display_name || shift.officer_name || 'Unallocated')}"
+                                               placeholder="Search officer by name, staff ID, or phone"
+                                               autocomplete="off"
+                                               ${activeFieldState}>
+                                        <div id="edit_officer_select_results" class="officer-search-results"></div>
+                                    </div>
                                     <div id="edit_officer_link_container"></div>
                                 </div>
                                 <div class="form-group" style="display: none;" id="customRateGroupMainEdit">
@@ -450,7 +612,13 @@ function editShift(shiftId) {
                             setTimeout(() => {
                                 const officerSelect = document.getElementById('edit_officer_select');
                                 if (officerSelect) {
-                                    setupOfficerInfoLink(officerSelect, 'edit_officer_link_container');
+                                    initOfficerAjaxPicker({
+                                        hiddenInputId: 'edit_officer_select',
+                                        searchInputId: 'edit_officer_select_search',
+                                        resultsId: 'edit_officer_select_results',
+                                        linkContainerId: 'edit_officer_link_container',
+                                        onChange: toggleCustomRateFieldMainEdit
+                                    });
                                     
                                     // Show custom rate field if officer is selected or custom rate exists
                                     const customRateInput = document.getElementById('custom_officer_rate_main_edit');

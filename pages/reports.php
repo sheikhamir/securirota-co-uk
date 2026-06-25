@@ -144,13 +144,27 @@ try {
     }
     $sites = $sites_stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    if ($use_company_filter && $company_id) {
-        $officers_stmt = $conn->prepare("SELECT id, staff_id, first_name, last_name, phone FROM officers WHERE company_id = ? ORDER BY first_name");
-        $officers_stmt->execute([$company_id]);
-    } else {
-        $officers_stmt = $conn->query("SELECT id, staff_id, first_name, last_name, phone FROM officers ORDER BY first_name");
+    $selected_officer_display = '';
+    if ($officer_filter) {
+        $selected_officer_sql = "
+            SELECT CONCAT(
+                first_name, ' ', last_name,
+                CASE WHEN staff_id IS NOT NULL AND staff_id != '' THEN CONCAT(' - ', staff_id) ELSE '' END,
+                CASE WHEN phone IS NOT NULL AND phone != '' THEN CONCAT(' - ', phone) ELSE '' END
+            ) as display_name
+            FROM officers
+            WHERE id = ?";
+        $selected_officer_params = [$officer_filter];
+
+        if ($use_company_filter && $company_id) {
+            $selected_officer_sql .= " AND company_id = ?";
+            $selected_officer_params[] = $company_id;
+        }
+
+        $selected_officer_stmt = $conn->prepare($selected_officer_sql);
+        $selected_officer_stmt->execute($selected_officer_params);
+        $selected_officer_display = $selected_officer_stmt->fetchColumn() ?: '';
     }
-    $officers = $officers_stmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Calculate totals (with safe defaults)
     $deployment_data = $deployment_data ?? [];
@@ -332,23 +346,20 @@ try {
             
             <div class="form-group">
                 <label>Officer:</label>
-                <select name="officer_id" class="form-control">
-                    <option value="">All Officers</option>
-                    <?php foreach ($officers as $officer): ?>
-                        <option value="<?php echo $officer['id']; ?>" <?php echo $officer_filter == $officer['id'] ? 'selected' : ''; ?>>
-                            <?php 
-                                $displayName = $officer['first_name'] . ' ' . $officer['last_name'];
-                                if (!empty($officer['staff_id'])) {
-                                    $displayName .= ' - ' . $officer['staff_id'];
-                                }
-                                if (!empty($officer['phone'])) {
-                                    $displayName .= ' - ' . $officer['phone'];
-                                }
-                                echo htmlspecialchars($displayName);
-                            ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
+                <div class="officer-search-wrap">
+                    <input type="hidden"
+                           name="officer_id"
+                           id="report_officer_id"
+                           value="<?php echo htmlspecialchars($officer_filter); ?>"
+                           data-officer-name="<?php echo htmlspecialchars($selected_officer_display); ?>">
+                    <input type="text"
+                           id="report_officer_search"
+                           class="form-control"
+                           value="<?php echo htmlspecialchars($selected_officer_display ?: 'All Officers'); ?>"
+                           placeholder="Search officer by name, staff ID, or phone"
+                           autocomplete="off">
+                    <div id="report_officer_results" class="officer-search-results"></div>
+                </div>
             </div>
         </div>
         
@@ -362,6 +373,16 @@ try {
         </div>
     </form>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    initOfficerAjaxPicker({
+        hiddenInputId: 'report_officer_id',
+        searchInputId: 'report_officer_search',
+        resultsId: 'report_officer_results'
+    });
+});
+</script>
 
 <!-- Summary Cards -->
 <div class="summary-cards">

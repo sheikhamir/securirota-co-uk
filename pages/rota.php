@@ -124,15 +124,6 @@ try {
         $officers = $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
     
-    // Always get all active officers for modals/forms (not filtered by site)
-    if ($use_company_filter && $company_id) {
-        $stmt = $conn->prepare("SELECT id, staff_id, first_name, last_name, phone FROM officers WHERE employment_status != 'Inactive' AND company_id = ? ORDER BY first_name");
-        $stmt->execute([$company_id]);
-    } else {
-        $stmt = $conn->query("SELECT id, staff_id, first_name, last_name, phone FROM officers WHERE employment_status != 'Inactive' ORDER BY first_name");
-    }
-    $all_officers = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
     // Get active sites with shift statistics
     $sites_sql = "
         SELECT s.id, s.site_name, c.company_name as client_name,
@@ -932,6 +923,35 @@ try {
     margin-top: 1px;
 }
 
+.officer-search-wrap {
+    position: relative;
+}
+
+.officer-search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #d1d5db;
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+    max-height: 260px;
+    overflow-y: auto;
+    z-index: 10000;
+    display: none;
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -2px rgb(0 0 0 / 0.05);
+}
+
+.officer-search-empty,
+.officer-search-loading,
+.officer-search-error {
+    padding: 10px 12px;
+    color: #6b7280;
+    font-size: 0.875rem;
+    background: white;
+}
+
 .search-result-item {
     padding: 10px 12px;
     cursor: pointer;
@@ -1534,9 +1554,6 @@ const CURRENT_SITE_FILTER = <?php echo $site_filter ? $site_filter : 'null'; ?>;
 // All sites data for autocomplete
 const ALL_SITES = <?php echo json_encode($sites); ?>;
 
-// All officers data for forms
-const ALL_OFFICERS = <?php echo json_encode($all_officers); ?>;
-
 // Week dates for bulk scheduling
 const WEEK_START = '<?php echo $week_start ?? date('Y-m-d', strtotime('monday this week')); ?>';
 const WEEK_END = '<?php echo $week_end ?? date('Y-m-d', strtotime('sunday this week')); ?>';
@@ -1579,23 +1596,198 @@ document.addEventListener('DOMContentLoaded', function() {
     loadRoles();
 });
 
+function getOfficerDisplayName(officer) {
+    if (!officer) return '';
+    return `${officer.first_name || ''} ${officer.last_name || ''}${officer.staff_id ? ' - ' + officer.staff_id : ''}${officer.phone ? ' - ' + officer.phone : ''}`.trim();
+}
+
+function renderOfficerSearchField(config) {
+    const selectedId = config.selectedId || '';
+    const selectedLabel = config.selectedLabel || '';
+    const disabled = config.disabled ? 'disabled' : '';
+    const placeholder = config.placeholder || 'Search officer by name, staff ID, or phone';
+
+    return `
+        <div class="officer-search-wrap" data-officer-picker="${config.id}">
+            <input type="hidden"
+                   name="${config.name || 'officer_id'}"
+                   id="${config.id}"
+                   value="${escapeHtml(selectedId)}"
+                   data-officer-name="${escapeHtml(selectedLabel)}">
+            <input type="text"
+                   id="${config.id}_search"
+                   class="form-control"
+                   value="${escapeHtml(selectedLabel)}"
+                   placeholder="${escapeHtml(placeholder)}"
+                   autocomplete="off"
+                   ${disabled}
+                   style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 6px;">
+            <div id="${config.id}_results" class="officer-search-results"></div>
+        </div>
+    `;
+}
+
+function initOfficerSearch(config) {
+    const hiddenInput = document.getElementById(config.hiddenInputId);
+    const searchInput = document.getElementById(config.searchInputId);
+    const results = document.getElementById(config.resultsId);
+
+    if (!hiddenInput || !searchInput || !results || searchInput.disabled) return;
+
+    let searchTimer = null;
+    let requestToken = 0;
+
+    const clearSelection = () => {
+        hiddenInput.value = '';
+        hiddenInput.dataset.officerName = '';
+        hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+
+    const hideResults = () => {
+        results.style.display = 'none';
+        results.innerHTML = '';
+    };
+
+    const selectOfficer = (officer) => {
+        hiddenInput.value = officer.id;
+        hiddenInput.dataset.officerName = getOfficerDisplayName(officer);
+        searchInput.value = hiddenInput.dataset.officerName;
+        hideResults();
+        hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+
+    const renderResults = (officers, query) => {
+        if (!officers.length) {
+            results.innerHTML = '<div class="officer-search-empty">No officers found</div>';
+            results.style.display = 'block';
+            return;
+        }
+
+        results.innerHTML = officers.map((officer, index) => `
+            <div class="search-result-item"
+                 data-index="${index}"
+                 role="button"
+                 tabindex="-1">
+                <div>${highlightMatch(getOfficerDisplayName(officer), query)}</div>
+                <div>${officer.staff_id ? 'Staff ID: ' + highlightMatch(officer.staff_id, query) : 'Officer'}</div>
+            </div>
+        `).join('');
+
+        results.querySelectorAll('.search-result-item').forEach((item) => {
+            item.addEventListener('mousedown', (event) => {
+                event.preventDefault();
+                selectOfficer(officers[parseInt(item.dataset.index, 10)]);
+            });
+        });
+
+        results.style.display = 'block';
+    };
+
+    const searchOfficers = (query) => {
+        const token = ++requestToken;
+        results.innerHTML = '<div class="officer-search-loading"><i class="fas fa-spinner fa-spin"></i> Searching...</div>';
+        results.style.display = 'block';
+
+        fetch(BASE_URL + 'api/search_officers.php?q=' + encodeURIComponent(query) + '&limit=20')
+            .then(response => response.json())
+            .then(data => {
+                if (token !== requestToken) return;
+                if (data.success) {
+                    renderResults(data.officers || [], query);
+                } else {
+                    results.innerHTML = '<div class="officer-search-error">Error loading officers</div>';
+                }
+            })
+            .catch(error => {
+                console.error('Officer search error:', error);
+                if (token === requestToken) {
+                    results.innerHTML = '<div class="officer-search-error">Error loading officers</div>';
+                }
+            });
+    };
+
+    searchInput.addEventListener('input', () => {
+        const query = searchInput.value.trim();
+        clearTimeout(searchTimer);
+
+        if (!query) {
+            clearSelection();
+            hideResults();
+            return;
+        }
+
+        if (query !== hiddenInput.dataset.officerName) {
+            clearSelection();
+        }
+
+        searchTimer = setTimeout(() => {
+            if (query.length >= 2) {
+                searchOfficers(query);
+            } else {
+                results.innerHTML = '<div class="officer-search-empty">Type at least 2 characters</div>';
+                results.style.display = 'block';
+            }
+        }, 250);
+    });
+
+    searchInput.addEventListener('focus', () => {
+        const query = searchInput.value.trim();
+        if (query.length >= 2 && !hiddenInput.value) {
+            searchOfficers(query);
+        }
+    });
+
+    searchInput.addEventListener('blur', () => {
+        setTimeout(() => {
+            if (!hiddenInput.value && searchInput.value.trim() !== '') {
+                searchInput.value = '';
+            }
+            hideResults();
+        }, 150);
+    });
+
+    searchInput.addEventListener('keydown', (event) => {
+        const items = results.querySelectorAll('.search-result-item');
+        let selectedIndex = Array.from(items).findIndex(item => item.classList.contains('selected'));
+
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            selectedIndex = selectedIndex < items.length - 1 ? selectedIndex + 1 : 0;
+            selectSearchItem(items, selectedIndex);
+        } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            selectedIndex = selectedIndex > 0 ? selectedIndex - 1 : items.length - 1;
+            selectSearchItem(items, selectedIndex);
+        } else if (event.key === 'Enter' && selectedIndex >= 0 && items[selectedIndex]) {
+            event.preventDefault();
+            items[selectedIndex].dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+        } else if (event.key === 'Escape') {
+            hideResults();
+            searchInput.blur();
+        }
+    });
+}
+
+function initOfficerPicker(config) {
+    initOfficerSearch(config);
+    const hiddenInput = document.getElementById(config.hiddenInputId);
+    if (hiddenInput) {
+        setupOfficerInfoLink(hiddenInput, config.linkContainerId);
+        if (typeof config.onChange === 'function') {
+            hiddenInput.addEventListener('change', () => config.onChange(hiddenInput));
+        }
+        if (config.runInitialChange) {
+            config.onChange(hiddenInput);
+        }
+    }
+}
+
 function showCreateShiftModal() {
     // Build site options
     let siteOptions = '<option value="">Select Site</option>';
     ALL_SITES.forEach(site => {
         const selected = CURRENT_SITE_FILTER == site.id ? 'selected' : '';
         siteOptions += `<option value="${site.id}" ${selected}>${site.site_name} (${site.client_name})</option>`;
-    });
-
-    // Build officer options - get from existing PHP data
-    let officerOptions = '<option value="">Unallocated</option>';
-    // Sort officers by first name only
-    const sortedOfficers = [...ALL_OFFICERS].sort((a, b) => {
-        return a.first_name.toLowerCase().localeCompare(b.first_name.toLowerCase());
-    });
-    sortedOfficers.forEach(officer => {
-        const displayName = `${officer.first_name} ${officer.last_name}${officer.staff_id ? ' - ' + officer.staff_id : ''}${officer.phone ? ' - ' + officer.phone : ''}`;
-        officerOptions += `<option value="${officer.id}">${displayName}</option>`;
     });
 
     const content = `
@@ -1612,9 +1804,7 @@ function showCreateShiftModal() {
             </div>
             <div class="form-group" style="margin-bottom: 1rem;">
                 <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">Officer (Optional):</label>
-                <select name="officer_id" id="create_officer_select" class="form-control" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 6px;" onchange="toggleCustomRateField(this)">
-                    ${officerOptions}
-                </select>
+                ${renderOfficerSearchField({ id: 'create_officer_select', selectedLabel: 'Unallocated' })}
                 <div id="create_officer_link_container"></div>
             </div>
             <div class="form-group" style="margin-bottom: 1rem; display: none;" id="customRateGroup">
@@ -1668,10 +1858,14 @@ function showCreateShiftModal() {
     
     // Setup officer info link after modal is shown
     setTimeout(() => {
-        const officerSelect = document.getElementById('create_officer_select');
-        if (officerSelect) {
-            setupOfficerInfoLink(officerSelect, 'create_officer_link_container');
-        }
+        initOfficerPicker({
+            hiddenInputId: 'create_officer_select',
+            searchInputId: 'create_officer_select_search',
+            resultsId: 'create_officer_select_results',
+            linkContainerId: 'create_officer_link_container',
+            onChange: toggleCustomRateField,
+            runInitialChange: true
+        });
     }, 100);
 }
 
@@ -1681,17 +1875,6 @@ function showBulkScheduleModal() {
     ALL_SITES.forEach(site => {
         const selected = CURRENT_SITE_FILTER == site.id ? 'selected' : '';
         siteOptions += `<option value="${site.id}" ${selected}>${site.site_name} (${site.client_name})</option>`;
-    });
-
-    // Build officer options
-    let officerOptions = '<option value="">Leave Unallocated</option>';
-    // Sort officers by first name only
-    const sortedOfficers = [...ALL_OFFICERS].sort((a, b) => {
-        return a.first_name.toLowerCase().localeCompare(b.first_name.toLowerCase());
-    });
-    sortedOfficers.forEach(officer => {
-        const displayName = `${officer.first_name} ${officer.last_name}${officer.staff_id ? ' - ' + officer.staff_id : ''}${officer.phone ? ' - ' + officer.phone : ''}`;
-        officerOptions += `<option value="${officer.id}">${displayName}</option>`;
     });
 
     const content = `
@@ -1712,9 +1895,7 @@ function showBulkScheduleModal() {
             </div>
             <div class="form-group" style="margin-bottom: 1rem;">
                 <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">Officer (Optional):</label>
-                <select name="officer_id" class="form-control" style="width: 100%; padding: 0.5rem; border: 1px solid #d1d5db; border-radius: 6px;" onchange="toggleCustomRateFieldBulk(this)">
-                    ${officerOptions}
-                </select>
+                ${renderOfficerSearchField({ id: 'bulk_officer_select', selectedLabel: 'Leave Unallocated' })}
             </div>
             <div class="form-group" style="margin-bottom: 1rem; display: none;" id="customRateGroupBulk">
                 <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #374151;">
@@ -1797,6 +1978,16 @@ function showBulkScheduleModal() {
         </form>
     `;
     showModal('Bulk Schedule Creator', content);
+
+    setTimeout(() => {
+        initOfficerPicker({
+            hiddenInputId: 'bulk_officer_select',
+            searchInputId: 'bulk_officer_select_search',
+            resultsId: 'bulk_officer_select_results',
+            onChange: toggleCustomRateFieldBulk,
+            runInitialChange: true
+        });
+    }, 100);
 }
 
 function createBulkSchedule(event) {
@@ -2157,15 +2348,12 @@ function editShift(shiftId) {
                         </div>
                         <div class="form-group">
                             <label>Officer:</label>
-                            <select name="officer_id" id="rota_edit_officer_select" class="form-control" onchange="toggleCustomRateFieldEdit(this)" ${activeFieldState}>
-                                <option value="">Unallocated</option>
-                                ${data.officers.sort((a, b) => {
-                                    return a.first_name.toLowerCase().localeCompare(b.first_name.toLowerCase());
-                                }).map(officer => {
-                                    const displayName = `${officer.first_name} ${officer.last_name}${officer.staff_id ? ' - ' + officer.staff_id : ''}${officer.phone ? ' - ' + officer.phone : ''}`;
-                                    return `<option value="${officer.id}" ${officer.id == shift.officer_id ? 'selected' : ''}>${displayName}</option>`;
-                                }).join('')}
-                            </select>
+                            ${renderOfficerSearchField({
+                                id: 'rota_edit_officer_select',
+                                selectedId: shift.officer_id || '',
+                                selectedLabel: shift.officer_display_name || shift.officer_name || 'Unallocated',
+                                disabled: activeShift
+                            })}
                             <div id="rota_edit_officer_link_container"></div>
                         </div>
                         <div class="form-group" style="display: none;" id="customRateGroupEdit">
@@ -2241,7 +2429,13 @@ function editShift(shiftId) {
                     // Setup officer info link
                     const officerSelect = document.getElementById('rota_edit_officer_select');
                     if (officerSelect) {
-                        setupOfficerInfoLink(officerSelect, 'rota_edit_officer_link_container');
+                        initOfficerPicker({
+                            hiddenInputId: 'rota_edit_officer_select',
+                            searchInputId: 'rota_edit_officer_select_search',
+                            resultsId: 'rota_edit_officer_select_results',
+                            linkContainerId: 'rota_edit_officer_link_container',
+                            onChange: toggleCustomRateFieldEdit
+                        });
                         
                         // Show custom rate field if officer is selected or custom rate exists
                         const customRateInput = document.getElementById('custom_officer_rate_edit');
@@ -2758,15 +2952,11 @@ function showRescheduleModal(shiftId) {
                         
                         <div class="form-group">
                             <label>Officer:</label>
-                            <select name="officer_id" id="reschedule_officer_select" class="form-control">
-                                <option value="">Unallocated</option>
-                                ${data.officers.sort((a, b) => {
-                                    return a.first_name.toLowerCase().localeCompare(b.first_name.toLowerCase());
-                                }).map(officer => {
-                                    const displayName = `${officer.first_name} ${officer.last_name}${officer.staff_id ? ' - ' + officer.staff_id : ''}${officer.phone ? ' - ' + officer.phone : ''}`;
-                                    return `<option value="${officer.id}" ${officer.id == shift.officer_id ? 'selected' : ''}>${displayName}</option>`;
-                                }).join('')}
-                            </select>
+                            ${renderOfficerSearchField({
+                                id: 'reschedule_officer_select',
+                                selectedId: shift.officer_id || '',
+                                selectedLabel: shift.officer_display_name || shift.officer_name || 'Unallocated'
+                            })}
                             <div id="reschedule_officer_link_container"></div>
                         </div>
                         
@@ -2816,10 +3006,12 @@ function showRescheduleModal(shiftId) {
                     }
                     
                     // Setup officer info link
-                    const officerSelect = document.getElementById('reschedule_officer_select');
-                    if (officerSelect) {
-                        setupOfficerInfoLink(officerSelect, 'reschedule_officer_link_container');
-                    }
+                    initOfficerPicker({
+                        hiddenInputId: 'reschedule_officer_select',
+                        searchInputId: 'reschedule_officer_select_search',
+                        resultsId: 'reschedule_officer_select_results',
+                        linkContainerId: 'reschedule_officer_link_container'
+                    });
                 }, 100);
             } else {
                 showNotification(data.message || 'Error loading shift data', 'error');

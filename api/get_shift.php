@@ -59,11 +59,18 @@ try {
         // Get shift details with company filtering
         $sql = "
             SELECT s.*, st.site_name as site_name, c.company_name as client_name,
-                   r.id as role_id, r.name as role_name
+                   r.id as role_id, r.name as role_name,
+                   CONCAT(o.first_name, ' ', o.last_name) as officer_name,
+                   CONCAT(
+                       o.first_name, ' ', o.last_name,
+                       CASE WHEN o.staff_id IS NOT NULL AND o.staff_id != '' THEN CONCAT(' - ', o.staff_id) ELSE '' END,
+                       CASE WHEN o.phone IS NOT NULL AND o.phone != '' THEN CONCAT(' - ', o.phone) ELSE '' END
+                   ) as officer_display_name
             FROM shifts s
             LEFT JOIN sites st ON s.site_id = st.id
             LEFT JOIN clients c ON st.client_id = c.id
             LEFT JOIN roles r ON s.role_id = r.id
+            LEFT JOIN officers o ON s.officer_id = o.id
             WHERE s.id = ?";
         
         $params = [$_GET['id']];
@@ -82,15 +89,6 @@ try {
             echo json_encode(['success' => false, 'message' => 'Shift not found']);
             exit();
         }
-        
-        // Get officers list with company filtering
-        if ($use_company_filter && $company_id) {
-            $stmt = $conn->prepare("SELECT id, staff_id, first_name, last_name, phone FROM officers WHERE employment_status != 'Inactive' AND company_id = ? ORDER BY first_name");
-            $stmt->execute([$company_id]);
-        } else {
-            $stmt = $conn->query("SELECT id, staff_id, first_name, last_name, phone FROM officers WHERE employment_status != 'Inactive' ORDER BY first_name");
-        }
-        $officers = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         // Get sites list with company filtering
         if ($use_company_filter && $company_id) {
@@ -116,7 +114,7 @@ try {
         echo json_encode([
             'success' => true,
             'shift' => $shift,
-            'officers' => $officers,
+            'officers' => [],
             'sites' => $sites
         ]);
     } else {

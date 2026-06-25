@@ -515,15 +515,16 @@ function allocateOfficer(shiftId) {
                     <form onsubmit="updateShiftOfficer(event, ${shiftId})">
                         <div class="form-group">
                             <label>Select Officer:</label>
-                            <select name="officer_id" id="deploy_officer_select" class="form-control" required>
-                                <option value="">Choose Officer</option>
-                                ${data.officers.sort((a, b) => {
-                                    return a.first_name.toLowerCase().localeCompare(b.first_name.toLowerCase());
-                                }).map(officer => {
-                                    const displayName = `${officer.first_name} ${officer.last_name}${officer.staff_id ? ' - ' + officer.staff_id : ''}${officer.phone ? ' - ' + officer.phone : ''}`;
-                                    return `<option value="${officer.id}">${displayName}</option>`;
-                                }).join('')}
-                            </select>
+                            <div class="officer-search-wrap">
+                                <input type="hidden" name="officer_id" id="deploy_officer_select" value="" data-officer-name="" required>
+                                <input type="text"
+                                       id="deploy_officer_select_search"
+                                       class="form-control"
+                                       placeholder="Search officer by name, staff ID, or phone"
+                                       autocomplete="off"
+                                       required>
+                                <div id="deploy_officer_select_results" class="officer-search-results"></div>
+                            </div>
                             <div id="deploy_officer_link_container"></div>
                         </div>
                         <button type="submit" class="btn btn-primary">Allocate Officer</button>
@@ -533,10 +534,12 @@ function allocateOfficer(shiftId) {
                 
                 // Setup officer info link after modal is shown
                 setTimeout(() => {
-                    const officerSelect = document.getElementById('deploy_officer_select');
-                    if (officerSelect) {
-                        setupOfficerInfoLink(officerSelect, 'deploy_officer_link_container');
-                    }
+                    initOfficerAjaxPicker({
+                        hiddenInputId: 'deploy_officer_select',
+                        searchInputId: 'deploy_officer_select_search',
+                        resultsId: 'deploy_officer_select_results',
+                        linkContainerId: 'deploy_officer_link_container'
+                    });
                 }, 100);
             }
         });
@@ -545,6 +548,10 @@ function allocateOfficer(shiftId) {
 function updateShiftOfficer(event, shiftId) {
     event.preventDefault();
     const formData = new FormData(event.target);
+    if (!formData.get('officer_id')) {
+        showNotification('Please select an officer', 'error');
+        return;
+    }
     formData.append('id', shiftId);
     formData.append('status', 'allocated');
 

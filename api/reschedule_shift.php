@@ -161,6 +161,23 @@ try {
         
         // Set officer_id to null if empty
         $officer_id = !empty($_POST['officer_id']) ? intval($_POST['officer_id']) : null;
+
+        if ($officer_id) {
+            $officer_check_sql = "SELECT id FROM officers WHERE id = ?";
+            $officer_check_params = [$officer_id];
+
+            if ($use_company_filter && $company_id) {
+                $officer_check_sql .= " AND company_id = ?";
+                $officer_check_params[] = $company_id;
+            }
+
+            $officer_check = $conn->prepare($officer_check_sql);
+            $officer_check->execute($officer_check_params);
+            if (!$officer_check->fetch()) {
+                echo json_encode(['success' => false, 'message' => 'Invalid officer specified or officer does not belong to your company']);
+                exit();
+            }
+        }
         
         // Set status - if officer is assigned and was previously allocated/confirmed, keep as allocated
         // If no officer, set as unallocated

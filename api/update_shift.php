@@ -90,10 +90,18 @@ try {
         // Validate officer_id if provided
         $officer_id = !empty($_POST['officer_id']) ? $_POST['officer_id'] : null;
         if ($officer_id) {
-            $stmt = $conn->prepare("SELECT id FROM officers WHERE id = ?");
-            $stmt->execute([$officer_id]);
+            $officer_check_sql = "SELECT id FROM officers WHERE id = ?";
+            $officer_check_params = [$officer_id];
+
+            if ($use_company_filter && $company_id) {
+                $officer_check_sql .= " AND company_id = ?";
+                $officer_check_params[] = $company_id;
+            }
+
+            $stmt = $conn->prepare($officer_check_sql);
+            $stmt->execute($officer_check_params);
             if (!$stmt->fetch()) {
-                echo json_encode(['success' => false, 'message' => 'Invalid officer ID']);
+                echo json_encode(['success' => false, 'message' => 'Invalid officer specified or officer does not belong to your company']);
                 exit();
             }
         }

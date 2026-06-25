@@ -78,6 +78,23 @@ try {
         
         $officer_id = !empty($_POST['officer_id']) && $_POST['officer_id'] !== 'null' ? $_POST['officer_id'] : null;
         $status = $officer_id ? 'allocated' : 'unallocated';
+
+        if ($officer_id) {
+            $officer_check_sql = "SELECT id FROM officers WHERE id = ? AND employment_status != 'Inactive'";
+            $officer_check_params = [$officer_id];
+
+            if ($use_company_filter && $company_id) {
+                $officer_check_sql .= " AND company_id = ?";
+                $officer_check_params[] = $company_id;
+            }
+
+            $officer_check = $conn->prepare($officer_check_sql);
+            $officer_check->execute($officer_check_params);
+            if (!$officer_check->fetch()) {
+                echo json_encode(['success' => false, 'message' => 'Invalid officer specified or officer does not belong to your company']);
+                exit();
+            }
+        }
         
         // Handle role field (can be either 'role' or 'role_id')
         $role_input = $_POST['role_id'] ?? $_POST['role'] ?? null;
