@@ -116,7 +116,7 @@ include '../includes/header.php';
                     <a href="sites.php" class="btn btn-secondary">
                         <i class="fas fa-arrow-left"></i> Back to Sites
                     </a>
-                    <a href="sites.php?edit=<?php echo $site['id']; ?>" class="btn btn-warning">
+                    <a href="sites.php?edit=<?php echo $site['id']; ?>&return_url=<?php echo rawurlencode($_SERVER['REQUEST_URI'] ?? 'sites.php'); ?>" class="btn btn-warning">
                         <i class="fas fa-edit"></i> Edit Site
                     </a>
                     <a href="rota.php?site_filter=<?php echo $site['id']; ?>" class="btn btn-primary">

@@ -10,7 +10,23 @@ if (!hasRole('admin') && !hasRole('manager')) {
 }
 
 $page_title = 'Site Management';
-require_once '../includes/header.php';
+
+function getSiteManagementReturnUrl($url = null) {
+    $url = trim((string)$url);
+
+    if ($url === '') {
+        return 'sites.php';
+    }
+
+    $parts = parse_url($url);
+    if ($parts === false || isset($parts['scheme']) || isset($parts['host']) || strpos($url, '//') === 0 || preg_match('/[\r\n]/', $url)) {
+        return 'sites.php';
+    }
+
+    return $url;
+}
+
+$return_url = getSiteManagementReturnUrl($_GET['return_url'] ?? $_POST['return_url'] ?? 'sites.php');
 
 try {
     $db = new Database();
@@ -105,8 +121,8 @@ try {
                         ]);
                     }
                     
-                    $success = "Site updated successfully!";
-                    break;
+                    header('Location: ' . getSiteManagementReturnUrl($_POST['return_url'] ?? 'sites.php'));
+                    exit();
             }
         }
     }
@@ -179,6 +195,8 @@ try {
 } catch (Exception $e) {
     $error = "Error: " . $e->getMessage();
 }
+
+require_once '../includes/header.php';
 ?>
 
 <?php if (isset($success)): ?>
@@ -211,6 +229,7 @@ try {
             <?php if (isset($_GET['edit'])): ?>
                 <input type="hidden" name="id" value="<?php echo $_GET['edit']; ?>">
             <?php endif; ?>
+            <input type="hidden" name="return_url" value="<?php echo htmlspecialchars($return_url); ?>">
             
             <div class="row g-4">
                 <div class="col-md-6">
@@ -287,7 +306,7 @@ try {
                 <button type="submit" class="btn btn-primary">
                     <i class="fas fa-save me-2"></i><?php echo isset($_GET['edit']) ? 'Update Site' : 'Add Site'; ?>
                 </button>
-                <a href="sites.php" class="btn btn-secondary">
+                <a href="<?php echo htmlspecialchars($return_url); ?>" class="btn btn-secondary">
                     <i class="fas fa-times me-2"></i>Cancel
                 </a>
             </div>
@@ -422,7 +441,7 @@ try {
                                 </td>
                                 <td>
                                     <div class="btn-group" role="group" aria-label="Site Actions">
-                                        <a href="sites.php?edit=<?php echo $site['id']; ?>" 
+                                        <a href="sites.php?edit=<?php echo $site['id']; ?>&return_url=<?php echo rawurlencode($_SERVER['REQUEST_URI'] ?? 'sites.php'); ?>"
                                            class="btn btn-warning btn-sm" 
                                            data-bs-toggle="tooltip" 
                                            data-bs-placement="top" 

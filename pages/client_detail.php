@@ -784,7 +784,7 @@ require_once '../includes/header.php';
                             <td><?php echo number_format($site['total_shifts'] ?? 0); ?></td>
                             <td><?php echo number_format($site['completed_shifts'] ?? 0); ?></td>
                             <td>
-                                <a href="sites.php?edit=<?php echo $site['id']; ?>" class="btn btn-outline-primary btn-sm me-1" title="Edit Site">
+                                <a href="sites.php?edit=<?php echo $site['id']; ?>&return_url=<?php echo rawurlencode($_SERVER['REQUEST_URI'] ?? 'sites.php'); ?>" class="btn btn-outline-primary btn-sm me-1" title="Edit Site">
                                     <i class="fas fa-edit"></i>
                                 </a>
                                 <a href="shifts.php?site_id=<?php echo $site['id']; ?>" class="btn btn-outline-info btn-sm" title="View Shifts">
