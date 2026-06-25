@@ -164,6 +164,10 @@ try {
         }
     }
     
+    $today = date('Y-m-d');
+    $current_month = date('m');
+    $current_year = date('Y');
+
     // Get recent unconfirmed shifts (allocated status)
     $stmt = $conn->prepare("
         SELECT s.*, sites.site_name, c.company_name as client_name,
@@ -172,11 +176,11 @@ try {
         JOIN sites ON s.site_id = sites.id
         JOIN clients c ON sites.client_id = c.id
         LEFT JOIN roles r ON s.role_id = r.id
-        WHERE s.officer_id = ? AND s.status = 'allocated' AND s.shift_date >= CURDATE()
+        WHERE s.officer_id = ? AND s.status = 'allocated' AND s.shift_date >= ?
         ORDER BY s.shift_date ASC, s.start_time ASC
         LIMIT 10
     ");
-    $stmt->execute([$officer['id']]);
+    $stmt->execute([$officer['id'], $today]);
     $unconfirmed_shifts = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // Get upcoming shifts (all statuses)
@@ -187,11 +191,11 @@ try {
         JOIN sites ON s.site_id = sites.id
         JOIN clients c ON sites.client_id = c.id
         LEFT JOIN roles r ON s.role_id = r.id
-        WHERE s.officer_id = ? AND s.shift_date >= CURDATE()
+        WHERE s.officer_id = ? AND s.shift_date >= ?
         ORDER BY s.shift_date ASC, s.start_time ASC
         LIMIT 20
     ");
-    $stmt->execute([$officer['id']]);
+    $stmt->execute([$officer['id'], $today]);
     $upcoming_shifts = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Get completed shifts for this month
@@ -210,11 +214,11 @@ try {
         JOIN clients c ON sites.client_id = c.id
         LEFT JOIN roles r ON s.role_id = r.id
         WHERE s.officer_id = ? AND s.status = 'completed'
-        AND MONTH(s.shift_date) = MONTH(CURDATE()) 
-        AND YEAR(s.shift_date) = YEAR(CURDATE())
+        AND MONTH(s.shift_date) = ?
+        AND YEAR(s.shift_date) = ?
         ORDER BY s.shift_date DESC, s.start_time DESC
     ");
-    $stmt->execute([$officer['id']]);
+    $stmt->execute([$officer['id'], $current_month, $current_year]);
     $completed_shifts = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Calculate total earnings for this month
@@ -274,9 +278,9 @@ try {
     $stmt = $conn->prepare("
         SELECT COUNT(*) as count 
         FROM shifts 
-        WHERE officer_id = ? AND status = 'allocated' AND shift_date >= CURDATE()
+        WHERE officer_id = ? AND status = 'allocated' AND shift_date >= ?
     ");
-    $stmt->execute([$officer['id']]);
+    $stmt->execute([$officer['id'], $today]);
     $unconfirmed_count = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
     
 } catch (Exception $e) {
@@ -836,19 +840,19 @@ try {
                         <p class="mb-3">Please take a selfie to confirm your check-in</p>
                         
                         <div class="camera-container">
-                            <video id="checkinVideo" width="300" height="225" autoplay style="display: none; border-radius: 8px;"></video>
+                            <video id="checkinVideo" width="300" height="225" autoplay playsinline muted style="display: none; border-radius: 8px;"></video>
                             <canvas id="checkinCanvas" width="300" height="225" style="display: none;"></canvas>
                             <img id="checkinPreview" class="photo-preview" style="display: none;" />
                         </div>
                         
                         <div class="mt-3">
-                            <button id="startCheckinCamera" class="btn btn-primary take-photo-btn">
+                            <button type="button" id="startCheckinCamera" class="btn btn-primary take-photo-btn">
                                 <i class="fas fa-camera"></i> Open Camera
                             </button>
-                            <button id="takeCheckinPhoto" class="btn btn-success take-photo-btn" style="display: none;">
+                            <button type="button" id="takeCheckinPhoto" class="btn btn-success take-photo-btn" style="display: none;">
                                 <i class="fas fa-camera"></i> Take Photo
                             </button>
-                            <button id="retakeCheckinPhoto" class="btn btn-warning take-photo-btn" style="display: none;">
+                            <button type="button" id="retakeCheckinPhoto" class="btn btn-warning take-photo-btn" style="display: none;">
                                 <i class="fas fa-redo"></i> Retake Photo
                             </button>
                         </div>
@@ -861,7 +865,7 @@ try {
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button id="submitCheckin" class="btn btn-success" disabled>
+                    <button type="button" id="submitCheckin" class="btn btn-success" disabled>
                         <i class="fas fa-check"></i> Confirm Check In
                     </button>
                 </div>
@@ -884,19 +888,19 @@ try {
                         <p class="mb-3">Please take a selfie to confirm your check-out</p>
                         
                         <div class="camera-container">
-                            <video id="checkoutVideo" width="300" height="225" autoplay style="display: none; border-radius: 8px;"></video>
+                            <video id="checkoutVideo" width="300" height="225" autoplay playsinline muted style="display: none; border-radius: 8px;"></video>
                             <canvas id="checkoutCanvas" width="300" height="225" style="display: none;"></canvas>
                             <img id="checkoutPreview" class="photo-preview" style="display: none;" />
                         </div>
                         
                         <div class="mt-3">
-                            <button id="startCheckoutCamera" class="btn btn-primary take-photo-btn">
+                            <button type="button" id="startCheckoutCamera" class="btn btn-primary take-photo-btn">
                                 <i class="fas fa-camera"></i> Open Camera
                             </button>
-                            <button id="takeCheckoutPhoto" class="btn btn-success take-photo-btn" style="display: none;">
+                            <button type="button" id="takeCheckoutPhoto" class="btn btn-success take-photo-btn" style="display: none;">
                                 <i class="fas fa-camera"></i> Take Photo
                             </button>
-                            <button id="retakeCheckoutPhoto" class="btn btn-warning take-photo-btn" style="display: none;">
+                            <button type="button" id="retakeCheckoutPhoto" class="btn btn-warning take-photo-btn" style="display: none;">
                                 <i class="fas fa-redo"></i> Retake Photo
                             </button>
                         </div>
@@ -904,7 +908,7 @@ try {
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button id="submitCheckout" class="btn btn-info" disabled>
+                    <button type="button" id="submitCheckout" class="btn btn-info" disabled>
                         <i class="fas fa-check"></i> Confirm Check Out
                     </button>
                 </div>
@@ -918,21 +922,79 @@ try {
     let checkinStream = null;
     let checkoutStream = null;
 
+    function getCameraErrorMessage(error) {
+        if (!window.isSecureContext) {
+            return 'Camera access requires HTTPS. Please open the portal using the secure https:// address.';
+        }
+
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            return 'This browser does not support camera access. Please try a recent version of Chrome, Safari, Edge, or Firefox.';
+        }
+
+        if (error && error.name === 'NotAllowedError') {
+            return 'Camera permission was blocked. Please allow camera access in your browser settings and try again.';
+        }
+
+        if (error && error.name === 'NotFoundError') {
+            return 'No camera was found on this device.';
+        }
+
+        return 'Error accessing camera: ' + (error && error.message ? error.message : 'Unknown error');
+    }
+
+    function stopCameraStream(stream) {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+        }
+    }
+
+    function startCamera(videoId, startButtonId, takeButtonId, setStream) {
+        const startButton = document.getElementById(startButtonId);
+        const originalLabel = startButton.innerHTML;
+
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.isSecureContext) {
+            alert(getCameraErrorMessage());
+            return;
+        }
+
+        startButton.disabled = true;
+        startButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Opening...';
+
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
+            .then(function(stream) {
+                setStream(stream);
+                const video = document.getElementById(videoId);
+                video.srcObject = stream;
+                video.style.display = 'block';
+                video.play().catch(function() {});
+
+                startButton.style.display = 'none';
+                document.getElementById(takeButtonId).style.display = 'inline-block';
+            })
+            .catch(function(err) {
+                alert(getCameraErrorMessage(err));
+            })
+            .finally(function() {
+                startButton.disabled = false;
+                startButton.innerHTML = originalLabel;
+            });
+    }
+
     // Show check-in modal
     function showCheckinModal(shiftId, action) {
         currentShiftId = shiftId;
         currentAction = action;
         
+        // Reset modal state
+        resetCheckinModal();
+
         // Show/hide late reason field
         if (action === 'late_checkin') {
             document.getElementById('checkinLateReason').style.display = 'block';
         } else {
             document.getElementById('checkinLateReason').style.display = 'none';
         }
-        
-        // Reset modal state
-        resetCheckinModal();
-        
+
         // Show modal
         new bootstrap.Modal(document.getElementById('checkinModal')).show();
     }
@@ -956,10 +1018,11 @@ try {
         document.getElementById('startCheckinCamera').style.display = 'inline-block';
         document.getElementById('takeCheckinPhoto').style.display = 'none';
         document.getElementById('retakeCheckinPhoto').style.display = 'none';
+        document.querySelector('#checkinLateReason textarea').value = '';
         document.getElementById('submitCheckin').disabled = true;
         
         if (checkinStream) {
-            checkinStream.getTracks().forEach(track => track.stop());
+            stopCameraStream(checkinStream);
             checkinStream = null;
         }
     }
@@ -974,26 +1037,16 @@ try {
         document.getElementById('submitCheckout').disabled = true;
         
         if (checkoutStream) {
-            checkoutStream.getTracks().forEach(track => track.stop());
+            stopCameraStream(checkoutStream);
             checkoutStream = null;
         }
     }
 
     // Start check-in camera
     document.getElementById('startCheckinCamera').addEventListener('click', function() {
-        navigator.mediaDevices.getUserMedia({ video: true })
-            .then(function(stream) {
-                checkinStream = stream;
-                const video = document.getElementById('checkinVideo');
-                video.srcObject = stream;
-                video.style.display = 'block';
-                
-                document.getElementById('startCheckinCamera').style.display = 'none';
-                document.getElementById('takeCheckinPhoto').style.display = 'inline-block';
-            })
-            .catch(function(err) {
-                alert('Error accessing camera: ' + err.message);
-            });
+        startCamera('checkinVideo', 'startCheckinCamera', 'takeCheckinPhoto', function(stream) {
+            checkinStream = stream;
+        });
     });
 
     // Take check-in photo
@@ -1016,7 +1069,7 @@ try {
         
         // Stop camera stream
         if (checkinStream) {
-            checkinStream.getTracks().forEach(track => track.stop());
+            stopCameraStream(checkinStream);
             checkinStream = null;
         }
     });
@@ -1031,19 +1084,9 @@ try {
 
     // Start check-out camera
     document.getElementById('startCheckoutCamera').addEventListener('click', function() {
-        navigator.mediaDevices.getUserMedia({ video: true })
-            .then(function(stream) {
-                checkoutStream = stream;
-                const video = document.getElementById('checkoutVideo');
-                video.srcObject = stream;
-                video.style.display = 'block';
-                
-                document.getElementById('startCheckoutCamera').style.display = 'none';
-                document.getElementById('takeCheckoutPhoto').style.display = 'inline-block';
-            })
-            .catch(function(err) {
-                alert('Error accessing camera: ' + err.message);
-            });
+        startCamera('checkoutVideo', 'startCheckoutCamera', 'takeCheckoutPhoto', function(stream) {
+            checkoutStream = stream;
+        });
     });
 
     // Take check-out photo
@@ -1066,7 +1109,7 @@ try {
         
         // Stop camera stream
         if (checkoutStream) {
-            checkoutStream.getTracks().forEach(track => track.stop());
+            stopCameraStream(checkoutStream);
             checkoutStream = null;
         }
     });
@@ -1165,14 +1208,14 @@ try {
     // Clean up camera streams when modals are closed
     document.getElementById('checkinModal').addEventListener('hidden.bs.modal', function() {
         if (checkinStream) {
-            checkinStream.getTracks().forEach(track => track.stop());
+            stopCameraStream(checkinStream);
             checkinStream = null;
         }
     });
 
     document.getElementById('checkoutModal').addEventListener('hidden.bs.modal', function() {
         if (checkoutStream) {
-            checkoutStream.getTracks().forEach(track => track.stop());
+            stopCameraStream(checkoutStream);
             checkoutStream = null;
         }
     });
