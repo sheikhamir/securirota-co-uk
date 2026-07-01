@@ -61,8 +61,15 @@ try {
                     throw new Exception('Subcontractor not found.');
                 }
 
-                $usage_stmt = $conn->prepare("SELECT COUNT(*) FROM officers WHERE subcontractor_id = ?");
-                $usage_stmt->execute([$id]);
+                $usage_sql = "SELECT COUNT(*) FROM officers WHERE subcontractor_id = ?";
+                $usage_params = [$id];
+
+                [$company_clause, $company_params] = buildSubcontractorCompanyClause($conn);
+                $usage_sql .= $company_clause;
+                $usage_params = array_merge($usage_params, $company_params);
+
+                $usage_stmt = $conn->prepare($usage_sql);
+                $usage_stmt->execute($usage_params);
                 $assigned_staff = (int) $usage_stmt->fetchColumn();
 
                 if ($assigned_staff > 0) {
@@ -96,11 +103,17 @@ try {
             SELECT subcontractor_id, COUNT(*) as assigned_staff
             FROM officers
             WHERE subcontractor_id IS NOT NULL
+    ";
+
+    [$officer_company_clause, $officer_company_params] = buildSubcontractorCompanyClause($conn);
+    $sql .= $officer_company_clause;
+    $params = $officer_company_params;
+
+    $sql .= "
             GROUP BY subcontractor_id
         ) staff_counts ON staff_counts.subcontractor_id = s.id
         WHERE 1=1
     ";
-    $params = [];
 
     [$company_clause, $company_params] = buildSubcontractorCompanyClause($conn, 's');
     $sql .= $company_clause;

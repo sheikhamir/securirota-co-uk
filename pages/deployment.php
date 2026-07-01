@@ -15,6 +15,25 @@ require_once '../includes/header.php';
 try {
     $db = new Database();
     $conn = $db->getConnection();
+
+    // Initialize company filtering
+    $use_company_filter = false;
+    $company_id = null;
+
+    // Check if we're in multi-tenant mode (post-migration)
+    try {
+        $column_check = $conn->query("SHOW COLUMNS FROM shifts LIKE 'company_id'");
+        if ($column_check->rowCount() > 0) {
+            $use_company_filter = true;
+            $is_super_admin = isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'super_admin';
+            if (!$is_super_admin) {
+                $company_id = $_SESSION['company_id'] ?? null;
+            }
+        }
+    } catch (Exception $e) {
+        // Pre-migration mode, no company filtering
+        $use_company_filter = false;
+    }
     
     // Get filter parameters
     $date_filter = $_GET['date'] ?? '';  // Show all dates by default
@@ -52,6 +71,11 @@ try {
     ";
     
     $params = [];
+
+    if ($use_company_filter && $company_id) {
+        $sql .= " AND s.company_id = ?";
+        $params[] = $company_id;
+    }
     
     if ($date_filter) {
         $sql .= " AND s.shift_date = ?";
@@ -81,13 +105,25 @@ try {
     
     // Get sites for filter
     try {
-        $sites_stmt = $conn->query("
-            SELECT s.id, s.site_name, c.company_name as client_name 
-            FROM sites s 
-            JOIN clients c ON s.client_id = c.id 
-            WHERE s.status = 'active' 
-            ORDER BY c.company_name, s.site_name
-        ");
+        if ($use_company_filter && $company_id) {
+            $sites_stmt = $conn->prepare("
+                SELECT s.id, s.site_name, c.company_name as client_name
+                FROM sites s
+                JOIN clients c ON s.client_id = c.id
+                WHERE s.status = 'active'
+                AND s.company_id = ?
+                ORDER BY c.company_name, s.site_name
+            ");
+            $sites_stmt->execute([$company_id]);
+        } else {
+            $sites_stmt = $conn->query("
+                SELECT s.id, s.site_name, c.company_name as client_name
+                FROM sites s
+                JOIN clients c ON s.client_id = c.id
+                WHERE s.status = 'active'
+                ORDER BY c.company_name, s.site_name
+            ");
+        }
         $sites = $sites_stmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (Exception $e) {
         $sites = [];

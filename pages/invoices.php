@@ -15,6 +15,25 @@ require_once '../includes/header.php';
 try {
     $db = new Database();
     $conn = $db->getConnection();
+
+    // Initialize company filtering
+    $use_company_filter = false;
+    $company_id = null;
+
+    // Check if we're in multi-tenant mode (post-migration)
+    try {
+        $column_check = $conn->query("SHOW COLUMNS FROM shifts LIKE 'company_id'");
+        if ($column_check->rowCount() > 0) {
+            $use_company_filter = true;
+            $is_super_admin = isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'super_admin';
+            if (!$is_super_admin) {
+                $company_id = $_SESSION['company_id'] ?? null;
+            }
+        }
+    } catch (Exception $e) {
+        // Pre-migration mode, no company filtering
+        $use_company_filter = false;
+    }
     
     // Default date range (current month)
     $start_date = $_GET['start_date'] ?? date('Y-m-01');
@@ -52,6 +71,11 @@ try {
         ";
         
         $params = [$start_date, $end_date];
+
+        if ($use_company_filter && $company_id) {
+            $sql .= " AND o.company_id = ?";
+            $params[] = $company_id;
+        }
         
         if ($entity_id) {
             $sql .= " AND o.id = ?";
@@ -66,12 +90,20 @@ try {
         
         $selected_officer_display = '';
         if ($entity_id) {
-            $selected_officer_stmt = $conn->prepare("
+            $selected_officer_sql = "
                 SELECT CONCAT(first_name, ' ', last_name) as display_name
                 FROM officers
                 WHERE id = ? AND employment_status != 'Inactive'
-            ");
-            $selected_officer_stmt->execute([$entity_id]);
+            ";
+            $selected_officer_params = [$entity_id];
+
+            if ($use_company_filter && $company_id) {
+                $selected_officer_sql .= " AND company_id = ?";
+                $selected_officer_params[] = $company_id;
+            }
+
+            $selected_officer_stmt = $conn->prepare($selected_officer_sql);
+            $selected_officer_stmt->execute($selected_officer_params);
             $selected_officer_display = $selected_officer_stmt->fetchColumn() ?: '';
         }
         $entities = [];
@@ -107,10 +139,20 @@ try {
         ";
         
         $params = [$start_date, $end_date];
+        $where_conditions = [];
+
+        if ($use_company_filter && $company_id) {
+            $where_conditions[] = "c.company_id = ?";
+            $params[] = $company_id;
+        }
         
         if ($entity_id) {
-            $sql .= " WHERE c.id = ?";
+            $where_conditions[] = "c.id = ?";
             $params[] = $entity_id;
+        }
+
+        if (!empty($where_conditions)) {
+            $sql .= " WHERE " . implode(" AND ", $where_conditions);
         }
         
         $sql .= " GROUP BY c.id ORDER BY client_name";
@@ -120,7 +162,12 @@ try {
         $invoice_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         // Get clients for dropdown
-        $clients_stmt = $conn->query("SELECT id, company_name as name FROM clients ORDER BY company_name");
+        if ($use_company_filter && $company_id) {
+            $clients_stmt = $conn->prepare("SELECT id, company_name as name FROM clients WHERE company_id = ? ORDER BY company_name");
+            $clients_stmt->execute([$company_id]);
+        } else {
+            $clients_stmt = $conn->query("SELECT id, company_name as name FROM clients ORDER BY company_name");
+        }
         $entities = $clients_stmt->fetchAll(PDO::FETCH_ASSOC);
     }
     
